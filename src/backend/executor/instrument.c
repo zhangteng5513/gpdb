@@ -26,9 +26,22 @@ int scan_node_counter = 0;
 
 /* Allocate new instrumentation structure(s) */
 Instrumentation *
-InstrAlloc(int n)
+InstrAlloc(int n, int instrument_options)
 {
 	Instrumentation *instr = palloc0(n * sizeof(Instrumentation));
+
+	if (instrument_options & (INSTRUMENT_TIMER | INSTRUMENT_CDB))
+	{
+		int			i;
+		bool		need_timer = instrument_options & INSTRUMENT_TIMER;
+		bool		need_cdb = instrument_options & INSTRUMENT_CDB;
+
+		for (i = 0; i < n; i++)
+		{
+			instr[i].need_timer = need_timer;
+			instr[i].need_cdb = need_cdb;
+		}
+	}
 
 	/* we don't need to do any initialization except zero 'em */
 	instr->numPartScanned = 0;
@@ -48,7 +61,7 @@ InstrStartNode(Instrumentation *instr)
 
 /* Exit from a plan node */
 void
-InstrStopNode(Instrumentation *instr, double nTuples)
+InstrStopNode(Instrumentation *instr, uint64 nTuples)
 {
 	instr_time	endtime;
 
@@ -173,7 +186,7 @@ InstrShmemInit(void)
  * or error, should also ensure it is recycled.
  */
 Instrumentation *
-InstrShmemPick(Plan *plan, int eflags)
+InstrShmemPick(Plan *plan, int eflags, int instrument_options)
 {
 	Instrumentation *instr = NULL;
 	InstrumentationSlot *slot = NULL;
@@ -218,6 +231,12 @@ InstrShmemPick(Plan *plan, int eflags)
 		 * memory and return it.
 		 */
 		instr = palloc0(sizeof(Instrumentation));
+	}
+
+	if (instrument_options & (INSTRUMENT_TIMER | INSTRUMENT_CDB))
+	{
+		instr->need_timer = instrument_options & INSTRUMENT_TIMER;
+		instr->need_cdb = instrument_options & INSTRUMENT_CDB;
 	}
 
 	return instr;

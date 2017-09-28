@@ -74,20 +74,37 @@ CREATE TABLE a (id int) DISTRIBUTED BY (id);
 INSERT INTO a SELECT * FROM generate_series(1, 50);
 SET OPTIMIZER=OFF;
 ANALYZE a;
--- end_ignore
 
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
+CREATE TABLE expected (segid int, free bigint, used bigint);
+CREATE TABLE results (segid int, free bigint, used bigint);
+
+set gp_enable_query_metrics=off;
+INSERT INTO expected SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
+INSERT INTO expected SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
+INSERT INTO expected SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
+set gp_enable_query_metrics=on;
+-- end_ignore
 
 -- regression to EXPLAN ANALZE
 EXPLAIN ANALYZE SELECT 1/0;
 EXPLAIN ANALYZE SELECT count(*) FROM a where id < (1/(select count(*) where 1=0));
 EXPLAIN ANALYZE SELECT count(*) FROM a a1, a a2, a a3;
 
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
+-- start_ignore
+set gp_enable_query_metrics=off;
+INSERT INTO results SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
+INSERT INTO results SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
+INSERT INTO results SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
+set gp_enable_query_metrics=on;
+-- end_ignore
+
+SELECT * FROM expected
+EXCEPT
+SELECT * FROM results;
+
+SELECT * FROM results
+EXCEPT
+SELECT * FROM expected;
 
 -- start_ignore
 DROP SCHEMA IF EXISTS QUERY_METRICS CASCADE; 

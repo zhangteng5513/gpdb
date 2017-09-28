@@ -550,7 +550,8 @@ postquel_start(execution_state *es, SQLFunctionCachePtr fcache)
 								 fcache->src,
 								 snapshot, InvalidSnapshot,
 								 dest,
-								 fcache->paramLI, false);
+								 fcache->paramLI,
+								 (gp_enable_query_metrics ? INSTRUMENT_ROWS : 0));
 
 		if (gp_enable_gpperfmon 
 			&& Gp_role == GP_ROLE_DISPATCH 

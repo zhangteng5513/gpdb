@@ -1296,7 +1296,7 @@ tuplesort_performsort(Tuplesortstate *state)
 			dumptuples(state, true);
 
 			/* CDB: How much work_mem would be enough for in-memory sort? */
-			if (state->instrument)
+			if (state->instrument && state->instrument->need_cdb)
 			{
 				/*
 				 * The workmemwanted is summed up of the following:
@@ -3742,7 +3742,7 @@ tuplesort_sorted_insert(Tuplesortstate *state, SortTuple *tuple,
 void
 tuplesort_finalize_stats(Tuplesortstate *state)
 {
-    if (state->instrument && !state->statsFinalized)
+    if (state->instrument && state->instrument->need_cdb && !state->statsFinalized)
     {
         double  workmemused;
 

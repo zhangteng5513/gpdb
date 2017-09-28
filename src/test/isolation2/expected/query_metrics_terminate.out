@@ -34,31 +34,33 @@ SET OPTIMIZER=OFF;
 SET
 ANALYZE a;
 ANALYZE
--- end_ignore
 
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
-segid|num_free|num_used
------+--------+--------
--1   |30000   |0       
-(1 row)
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
-segid|num_free|num_used
------+--------+--------
-0    |30000   |0       
-(1 row)
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
-segid|num_free|num_used
------+--------+--------
-1    |30000   |0       
-(1 row)
+CREATE TABLE expected (segid int, free bigint, used bigint);
+CREATE
+CREATE TABLE results1 (segid int, free bigint, used bigint);
+CREATE
+CREATE TABLE results2 (segid int, free bigint, used bigint);
+CREATE
+
+set gp_enable_query_metrics=off;
+SET
+INSERT INTO expected SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
+INSERT 1
+INSERT INTO expected SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
+INSERT 1
+INSERT INTO expected SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
+INSERT 1
+set gp_enable_query_metrics=on;
+SET
+-- end_ignore
 
 create table foo as select i a, i b from generate_series(1, 10) i;
 CREATE 10
 
 -- expect this query terminated by 'test pg_terminate_backend'
-1&:explain analyze create temp table t as select count(*) from foo where pg_sleep(20) is null;  <waiting ...>
+1&:explain analyze create temp table t1 as select count(*) from foo where pg_sleep(20) is null;  <waiting ...>
 -- extract the pid for the previous query
-SELECT pg_terminate_backend(procpid,'test pg_terminate_backend') FROM pg_stat_activity WHERE current_query like 'explain analyze create temp table t as select%' ORDER BY procpid LIMIT 1;
+SELECT pg_terminate_backend(procpid,'test pg_terminate_backend') FROM pg_stat_activity WHERE current_query like 'explain analyze create temp table t1 as select%' ORDER BY procpid LIMIT 1;
 pg_terminate_backend
 --------------------
 t                   
@@ -77,32 +79,34 @@ count
 10   
 (1 row)
 
--- ensure no instrument slot leak on fatal
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
-segid|num_free|num_used
------+--------+--------
--1   |30000   |0       
-(1 row)
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
-segid|num_free|num_used
------+--------+--------
-0    |30000   |0       
-(1 row)
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
-segid|num_free|num_used
------+--------+--------
-1    |30000   |0       
-(1 row)
+-- start_ignore
+set gp_enable_query_metrics=off;
+SET
+INSERT INTO results1 SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
+INSERT 1
+INSERT INTO results1 SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
+INSERT 1
+INSERT INTO results1 SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
+INSERT 1
+set gp_enable_query_metrics=on;
+SET
+-- end_ignore
+
+-- ensure no instrument slot leak by terminate
+SELECT * FROM expected EXCEPT SELECT * FROM results1;
+segid|free|used
+-----+----+----
+(0 rows)
+
+SELECT * FROM results1 EXCEPT SELECT * FROM expected;
+segid|free|used
+-----+----+----
+(0 rows)
 
 -- expect this query cancelled by 'test pg_cancel_backend'
-2&:explain analyze select * from pg_sleep(20);  <waiting ...>
+2&:explain analyze create temp table t2 as select count(*) from foo where pg_sleep(20) is null;  <waiting ...>
 -- extract the pid for the previous query
-SELECT * from pg_sleep(2);
-pg_sleep
---------
-        
-(1 row)
-SELECT pg_cancel_backend(procpid,'test pg_cancel_backend') FROM pg_stat_activity WHERE current_query like 'explain analyze select * from pg_sleep%' ORDER BY procpid LIMIT 1;
+SELECT pg_cancel_backend(procpid,'test pg_cancel_backend') FROM pg_stat_activity WHERE current_query like 'explain analyze create temp table t2 as select%' ORDER BY procpid LIMIT 1;
 pg_cancel_backend
 -----------------
 t                
@@ -118,22 +122,29 @@ count
 10   
 (1 row)
 
--- ensure no instrument slot leak
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
-segid|num_free|num_used
------+--------+--------
--1   |30000   |0       
-(1 row)
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
-segid|num_free|num_used
------+--------+--------
-0    |30000   |0       
-(1 row)
-SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
-segid|num_free|num_used
------+--------+--------
-1    |30000   |0       
-(1 row)
+-- start_ignore
+set gp_enable_query_metrics=off;
+SET
+INSERT INTO results2 SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
+INSERT 1
+INSERT INTO results2 SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
+INSERT 1
+INSERT INTO results2 SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
+INSERT 1
+set gp_enable_query_metrics=on;
+SET
+-- end_ignore
+
+-- ensure no instrument slot leak by cancel
+SELECT * FROM results1 EXCEPT SELECT * FROM results2;
+segid|free|used
+-----+----+----
+(0 rows)
+
+SELECT * FROM results2 EXCEPT SELECT * FROM results1;
+segid|free|used
+-----+----+----
+(0 rows)
 
 -- start_ignore
 DROP SCHEMA IF EXISTS QUERY_METRICS CASCADE;
