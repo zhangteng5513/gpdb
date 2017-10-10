@@ -1410,12 +1410,16 @@ typedef struct PlanState
 	 */
 	int		gpmon_plan_tick;
 	gpmon_packet_t gpmon_pkt;
+
+	bool		fHadSentMetrics;
 } PlanState;
 
 /* Gpperfmon helper functions defined in execGpmon.c */
 extern void CheckSendPlanStateGpmonPkt(PlanState *ps);
 extern void EndPlanStateGpmonPkt(PlanState *ps);
 extern void InitPlanNodeGpmonPkt(Plan* plan, gpmon_packet_t *gpmon_pkt, EState *estate);
+extern void InitQexecPacket(Plan *plan, gpmon_packet_t *gpmon_pkt);
+
 
 extern uint64 PlanStateOperatorMemKB(const PlanState *ps);
 

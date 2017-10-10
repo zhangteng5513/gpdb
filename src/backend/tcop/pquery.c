@@ -34,6 +34,7 @@
 #include "executor/spi.h"
 #include "postmaster/autostats.h"
 #include "postmaster/backoff.h"
+#include "utils/query_metrics.h"
 #include "utils/resscheduler.h"
 
 
@@ -121,7 +122,7 @@ CreateQueryDesc(PlannedStmt *plannedstmt,
 		}
 	}
 	
-	if(gp_enable_gpperfmon && Gp_role == GP_ROLE_DISPATCH)
+	if((gp_enable_gpperfmon || gp_enable_query_metrics) && Gp_role == GP_ROLE_DISPATCH)
 	{
 		qd->gpmon_pkt = (gpmon_packet_t *) palloc0(sizeof(gpmon_packet_t));
 		gpmon_qlog_packet_init(qd->gpmon_pkt);
@@ -238,7 +239,7 @@ ProcessQuery(Portal portal,
 									(gp_enable_query_metrics ? INSTRUMENT_ROWS : 0));
 	queryDesc->ddesc = portal->ddesc;
 
-	if (gp_enable_gpperfmon && Gp_role == GP_ROLE_DISPATCH)
+	if ((gp_enable_gpperfmon || gp_enable_query_metrics) && Gp_role == GP_ROLE_DISPATCH)
 	{
 		Assert(portal->sourceText);
 		gpmon_qlog_query_submit(queryDesc->gpmon_pkt);
@@ -247,6 +248,7 @@ ProcessQuery(Portal portal,
 				application_name,
 				GetResqueueName(portal->queueId),
 				GetResqueuePriority(portal->queueId));
+		metrics_send_query_info(queryDesc, METRICS_QUERY_SUBMIT);
 	}
 
 	queryDesc->plannedstmt->query_mem = ResourceManagerGetQueryMemoryLimit(queryDesc->plannedstmt);
@@ -643,7 +645,7 @@ PortalStart(Portal portal, ParamListInfo params, Snapshot snapshot,
 											(gp_enable_query_metrics ? INSTRUMENT_ROWS : 0));
 				queryDesc->ddesc = ddesc;
 				
-				if (gp_enable_gpperfmon && Gp_role == GP_ROLE_DISPATCH)
+				if ((gp_enable_gpperfmon || gp_enable_query_metrics) && Gp_role == GP_ROLE_DISPATCH)
 				{			
 					Assert(portal->sourceText);
 					gpmon_qlog_query_submit(queryDesc->gpmon_pkt);
@@ -652,6 +654,7 @@ PortalStart(Portal portal, ParamListInfo params, Snapshot snapshot,
 							application_name,
 							GetResqueueName(portal->queueId),
 							GetResqueuePriority(portal->queueId));
+					metrics_send_query_info(queryDesc, METRICS_QUERY_SUBMIT);
 				}
 
 				/* 
