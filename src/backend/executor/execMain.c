@@ -78,6 +78,7 @@
 #include "utils/tqual.h"
 
 #include "utils/ps_status.h"
+#include "utils/query_metrics.h"
 #include "utils/snapmgr.h"
 #include "utils/typcache.h"
 #include "utils/workfile_mgr.h"
@@ -151,6 +152,7 @@ static void intorel_shutdown(DestReceiver *self);
 static void intorel_destroy(DestReceiver *self);
 
 static void FillSliceTable(EState *estate, PlannedStmt *stmt);
+static void InitNodeMetrics(PlannedStmt *plannedstmt);
 
 void ExecCheckRTPerms(List *rangeTable);
 void ExecCheckRTEPerms(RangeTblEntry *rte);
@@ -293,7 +295,7 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 	/**
 	 * Perfmon related stuff.
 	 */
-	if (gp_enable_gpperfmon
+	if ((gp_enable_gpperfmon || gp_enable_query_metrics)
 		&& Gp_role == GP_ROLE_DISPATCH
 		&& queryDesc->gpmon_pkt)
 	{
@@ -1150,7 +1152,7 @@ standard_ExecutorEnd(QueryDesc *queryDesc)
 	/**
 	 * Perfmon related stuff.
 	 */
-	if (gp_enable_gpperfmon 
+	if ((gp_enable_gpperfmon || gp_enable_query_metrics)
 			&& Gp_role == GP_ROLE_DISPATCH
 			&& queryDesc->gpmon_pkt)
 	{			
@@ -1948,6 +1950,9 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 	 * processing tuples.
 	 */
 	planstate = ExecInitNode(start_plan_node, estate, eflags);
+
+	/* GPDB emit plan node init info */
+	InitNodeMetrics(plannedstmt);
 
 	queryDesc->planstate = planstate;
 
@@ -5928,3 +5933,57 @@ FillSliceTable(EState *estate, PlannedStmt *stmt)
 	 */
 	FillSliceTable_walker((Node *) stmt->planTree, &cxt);
 }
+
+typedef struct InitNodeMetricsContext
+{
+	plan_tree_base_prefix base; /* Required prefix for plan_tree_walker/mutator */
+	Plan *parent;
+} InitNodeMetricsContext;
+
+static bool
+InitNodeMetrics_walker(Node *node, InitNodeMetricsContext *context)
+{
+	Plan *plan;
+	InitNodeMetricsContext *ctx = context;
+
+	Assert(context);
+
+	if (node == NULL)
+		return false;
+
+	if(is_plan_node(node))
+	{
+		ctx = (InitNodeMetricsContext*) palloc0(sizeof(InitNodeMetricsContext));
+		ctx->base = context->base;
+
+		plan = (Plan *) node;
+		ctx->parent = plan;
+
+		if (NULL != context->parent)
+			plan->plan_parent_node_id = context->parent->plan_node_id;
+		else
+			plan->plan_parent_node_id = (-1);
+
+		InitNodeMetricsInfoPkt(plan);
+	}
+
+	/* Continue walking */
+	return plan_tree_walker((Node*)node, InitNodeMetrics_walker, ctx);
+}
+
+/*
+ * Set up the parent-child relationships of nodes
+ * Send initial Qexec packet to gp_query_metrics_port
+ */
+static void
+InitNodeMetrics(PlannedStmt *plannedstmt)
+{
+	InitNodeMetricsContext ctx;
+	plan_tree_base_prefix base;
+
+	base.node = (Node*)plannedstmt;
+	ctx.base = base;
+	ctx.parent = NULL;
+	InitNodeMetrics_walker((Node*)plannedstmt->planTree, &ctx);
+}
+

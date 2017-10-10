@@ -710,7 +710,7 @@ ResLockPortal(Portal portal, QueryDesc *qDesc)
 				 * Perfmon related stuff: clean up if we got cancelled
 				 * while waiting.
 				 */
-				if (gp_enable_gpperfmon && qDesc->gpmon_pkt)
+				if ((gp_enable_gpperfmon || gp_enable_query_metrics) && qDesc->gpmon_pkt)
 				{			
 					gpmon_qlog_query_error(qDesc->gpmon_pkt);
 					pfree(qDesc->gpmon_pkt);

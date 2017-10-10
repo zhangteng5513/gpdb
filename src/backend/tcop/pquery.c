@@ -121,7 +121,7 @@ CreateQueryDesc(PlannedStmt *plannedstmt,
 		}
 	}
 	
-	if(gp_enable_gpperfmon && Gp_role == GP_ROLE_DISPATCH)
+	if((gp_enable_gpperfmon || gp_enable_query_metrics) && Gp_role == GP_ROLE_DISPATCH)
 	{
 		qd->gpmon_pkt = (gpmon_packet_t *) palloc0(sizeof(gpmon_packet_t));
 		gpmon_qlog_packet_init(qd->gpmon_pkt);
@@ -238,7 +238,7 @@ ProcessQuery(Portal portal,
 									(gp_enable_query_metrics ? INSTRUMENT_ROWS : 0));
 	queryDesc->ddesc = portal->ddesc;
 
-	if (gp_enable_gpperfmon && Gp_role == GP_ROLE_DISPATCH)
+	if ((gp_enable_gpperfmon || gp_enable_query_metrics) && Gp_role == GP_ROLE_DISPATCH)
 	{
 		Assert(portal->sourceText);
 		gpmon_qlog_query_submit(queryDesc->gpmon_pkt);
@@ -643,7 +643,7 @@ PortalStart(Portal portal, ParamListInfo params, Snapshot snapshot,
 											(gp_enable_query_metrics ? INSTRUMENT_ROWS : 0));
 				queryDesc->ddesc = ddesc;
 				
-				if (gp_enable_gpperfmon && Gp_role == GP_ROLE_DISPATCH)
+				if ((gp_enable_gpperfmon || gp_enable_query_metrics) && Gp_role == GP_ROLE_DISPATCH)
 				{			
 					Assert(portal->sourceText);
 					gpmon_qlog_query_submit(queryDesc->gpmon_pkt);

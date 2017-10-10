@@ -2063,7 +2063,7 @@ void mppExecutorCleanup(QueryDesc *queryDesc)
 	 * If this query is being canceled, record that when the gpperfmon
 	 * is enabled.
 	 */
-	if (gp_enable_gpperfmon &&
+	if ((gp_enable_gpperfmon || gp_enable_query_metrics) &&
 		Gp_role == GP_ROLE_DISPATCH &&
 		queryDesc->gpmon_pkt &&
 		QueryCancelCleanup)
@@ -2117,7 +2117,7 @@ void mppExecutorCleanup(QueryDesc *queryDesc)
 	/**
 	 * Perfmon related stuff.
 	 */
-	if (gp_enable_gpperfmon 
+	if ((gp_enable_gpperfmon || gp_enable_query_metrics)
 			&& Gp_role == GP_ROLE_DISPATCH
 			&& queryDesc->gpmon_pkt)
 	{			

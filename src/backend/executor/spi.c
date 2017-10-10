@@ -1903,7 +1903,7 @@ _SPI_execute_plan(SPIPlanPtr plan, ParamListInfo paramLI,
 										dest,
 										paramLI, 0);
 
-				if (gp_enable_gpperfmon 
+				if ((gp_enable_gpperfmon || gp_enable_query_metrics) 
 						&& Gp_role == GP_ROLE_DISPATCH 
 						&& log_min_messages < DEBUG4)
 				{

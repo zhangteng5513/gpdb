@@ -1581,7 +1581,7 @@ DoCopyInternal(const CopyStmt *stmt, const char *queryString, CopyState cstate)
 											dest, NULL,
 											(gp_enable_query_metrics ? INSTRUMENT_ROWS : 0));
 
-		if (gp_enable_gpperfmon && Gp_role == GP_ROLE_DISPATCH)
+		if ((gp_enable_gpperfmon || gp_enable_query_metrics) && Gp_role == GP_ROLE_DISPATCH)
 		{
 			Assert(queryString);
 			gpmon_qlog_query_submit(cstate->queryDesc->gpmon_pkt);

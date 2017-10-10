@@ -392,7 +392,7 @@ ExplainOnePlan(PlannedStmt *plannedstmt, ExplainStmt *stmt,
 								None_Receiver, params,
 								instrument_option);
 
-	if (gp_enable_gpperfmon && Gp_role == GP_ROLE_DISPATCH)
+	if ((gp_enable_gpperfmon || gp_enable_query_metrics) && Gp_role == GP_ROLE_DISPATCH)
 	{
 		Assert(queryString);
 		gpmon_qlog_query_submit(queryDesc->gpmon_pkt);
