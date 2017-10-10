@@ -1410,6 +1410,8 @@ typedef struct PlanState
 	 */
 	int		gpmon_plan_tick;
 	gpmon_packet_t gpmon_pkt;
+
+	bool		fHadSentNodeStart;
 } PlanState;
 
 /* Gpperfmon helper functions defined in execGpmon.c */
