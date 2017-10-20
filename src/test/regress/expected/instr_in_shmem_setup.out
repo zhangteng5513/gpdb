@@ -1,0 +1,41 @@
+-- start_ignore
+-- gp_enable_query_metrics GUC will enable instrumentation
+-- collection for every query in following tests.
+-- After all tests finished, the last test check_instr_in_shmem
+-- will check for leaks of instrumentation slots in shmem.
+\! gpconfig -c gp_enable_query_metrics -v on 
+20180112:15:22:21:003692 gpconfig:mdw:gpadmin-[INFO]:-completed successfully with parameters '-c gp_enable_query_metrics -v on'
+\! PGDATESTYLE="" gpstop -rai
+20180112:15:22:22:003809 gpstop:mdw:gpadmin-[INFO]:-Starting gpstop with args: -rai
+20180112:15:22:22:003809 gpstop:mdw:gpadmin-[INFO]:-Gathering information and validating the environment...
+20180112:15:22:22:003809 gpstop:mdw:gpadmin-[INFO]:-Obtaining Greenplum Master catalog information
+20180112:15:22:22:003809 gpstop:mdw:gpadmin-[INFO]:-Obtaining Segment details from master...
+20180112:15:22:22:003809 gpstop:mdw:gpadmin-[INFO]:-Greenplum Version: 'postgres (Greenplum Database) 6.0.0-alpha.0+dev.2647.gdd1ff34 build dev-oss'
+20180112:15:22:22:003809 gpstop:mdw:gpadmin-[INFO]:-There are 1 connections to the database
+20180112:15:22:22:003809 gpstop:mdw:gpadmin-[INFO]:-Commencing Master instance shutdown with mode='immediate'
+20180112:15:22:22:003809 gpstop:mdw:gpadmin-[INFO]:-Master host=mdw.dev.gpcc
+20180112:15:22:22:003809 gpstop:mdw:gpadmin-[INFO]:-Commencing Master instance shutdown with mode=immediate
+20180112:15:22:22:003809 gpstop:mdw:gpadmin-[INFO]:-Master segment instance directory=/home/gpadmin/gpdata/gpdb_master_dev/master/gpseg-1
+20180112:15:22:23:003809 gpstop:mdw:gpadmin-[INFO]:-Attempting forceful termination of any leftover master process
+20180112:15:22:23:003809 gpstop:mdw:gpadmin-[INFO]:-Terminating processes for segment /home/gpadmin/gpdata/gpdb_master_dev/master/gpseg-1
+20180112:15:22:23:003809 gpstop:mdw:gpadmin-[INFO]:-No standby master host configured
+20180112:15:22:23:003809 gpstop:mdw:gpadmin-[INFO]:-Targeting dbid [2, 11, 3, 12, 4, 13, 5, 14, 6, 15, 7, 16, 8, 17, 9, 18, 10, 19] for shutdown
+20180112:15:22:23:003809 gpstop:mdw:gpadmin-[INFO]:-Commencing parallel primary segment instance shutdown, please wait...
+20180112:15:22:23:003809 gpstop:mdw:gpadmin-[INFO]:-0.00% of jobs completed
+20180112:15:22:24:003809 gpstop:mdw:gpadmin-[INFO]:-100.00% of jobs completed
+20180112:15:22:24:003809 gpstop:mdw:gpadmin-[INFO]:-Commencing parallel mirror segment instance shutdown, please wait...
+20180112:15:22:24:003809 gpstop:mdw:gpadmin-[INFO]:-0.00% of jobs completed
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-100.00% of jobs completed
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-----------------------------------------------------
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-   Segments stopped successfully      = 18
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-   Segments with errors during stop   = 0
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-----------------------------------------------------
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-Successfully shutdown 18 of 18 segment instances 
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-Database successfully shutdown with no errors reported
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-Cleaning up leftover gpmmon process
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-No leftover gpmmon process found
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-Cleaning up leftover gpsmon processes
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-No leftover gpsmon processes on some hosts. not attempting forceful termination on these hosts
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-Cleaning up leftover shared memory
+20180112:15:22:26:003809 gpstop:mdw:gpadmin-[INFO]:-Restarting System...
+-- end_ignore

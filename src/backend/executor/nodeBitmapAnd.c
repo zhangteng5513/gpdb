@@ -205,7 +205,7 @@ MultiExecBitmapAnd(BitmapAndState *node)
 
 	/* must provide our own instrumentation support */
 	if (node->ps.instrument)
-        InstrStopNode(node->ps.instrument, empty ? 0 : 1);
+		InstrStopNode(node->ps.instrument, empty ? 0 : 1);
 
 	/* check to see if we have any hash bitmaps */
 	if (hbm != NULL)
