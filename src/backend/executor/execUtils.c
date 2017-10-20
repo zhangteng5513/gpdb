@@ -66,6 +66,7 @@
 #include "cdb/cdbmotion.h"
 #include "cdb/cdbsreh.h"
 #include "cdb/memquota.h"
+#include "executor/instrument.h"
 #include "executor/spi.h"
 #include "utils/elog.h"
 #include "miscadmin.h"
@@ -1371,7 +1372,7 @@ InitSliceTable(EState *estate, int nMotions, int nSubplans)
 	table->nMotions = nMotions;
 	table->nInitPlans = nSubplans;
 	table->slices = NIL;
-    table->doInstrument = false;
+    table->instrument_options = 0;
 
 	/* Each slice table has a unique-id. */
 	table->ic_instance_id = ++gp_interconnect_id;

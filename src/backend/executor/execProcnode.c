@@ -837,7 +837,30 @@ ExecInitNode(Plan *node, EState *estate, int eflags)
 
 	/* Set up instrumentation for this node if requested */
 	if (estate->es_instrument && result != NULL)
-		result->instrument = InstrAlloc(1);
+	{
+		switch (nodeTag(node))
+		{
+			case T_SeqScan:
+			case T_AppendOnlyScan:
+			case T_AOCSScan:
+			case T_TableScan:
+				/*
+				 * If table has many partitions, legacy planner will generate a
+				 * plan with many SCAN nodes under a APPEND node. If the number of
+				 * partitions are too many, this plan will occupy too many slots.
+				 * Here is a limitation on number of shmem slots used by scan nodes
+				 * for each backend.
+				 */
+				if (scan_node_counter >= MAX_SCAN_ON_SHMEM)
+				{
+					result->instrument = InstrAlloc(1, estate->es_instrument);
+					break;
+				}
+				scan_node_counter++;
+			default:
+				result->instrument = InstrShmemPick(node, eflags, estate->es_instrument);
+		}
+	}
 
 	/* Also set up gpmon counters */
 	InitPlanNodeGpmonPkt(node, &result->gpmon_pkt, estate);
@@ -1037,7 +1060,7 @@ ExecProcNode(PlanState *node)
 		ExecReScan(node, NULL); /* let ReScan handle this */
 
 	if (node->instrument)
-		InstrStartNode(node->instrument);
+		INSTR_START_NODE(node->instrument);
 
 	if(!node->fHadSentGpmon)
 		CheckSendPlanStateGpmonPkt(node);
@@ -1227,7 +1250,7 @@ ExecProcNode(PlanState *node)
 	}
 
 	if (node->instrument)
-		InstrStopNode(node->instrument, TupIsNull(result) ? 0.0 : 1.0);
+		INSTR_STOP_NODE(node->instrument, TupIsNull(result) ? 0 : 1);
 
 	if (node->plan)
 		TRACE_POSTGRESQL_EXECPROCNODE_EXIT(Gp_segment, currentSliceId, nodeTag(node), node->plan->plan_node_id);
@@ -1837,6 +1860,9 @@ ExecEndNode(PlanState *node)
 			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(node));
 			break;
 	}
+
+	/* GPDB send query metrics packet for node finish */
+	UpdateNodeMetricsInfoPkt(node, METRICS_NODE_FINISHED);
 
 	if (codegen)
 	{
