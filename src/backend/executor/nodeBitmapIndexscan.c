@@ -66,7 +66,7 @@ MultiExecBitmapIndexScan(BitmapIndexScanState *node)
 
 	/* must provide our own instrumentation support */
 	if (node->ss.ps.instrument)
-		InstrStartNode(node->ss.ps.instrument);
+		INSTR_START_NODE(node->ss.ps.instrument);
 
 	/*
 	 * extract necessary information from index scan node
@@ -105,7 +105,7 @@ MultiExecBitmapIndexScan(BitmapIndexScanState *node)
 			break;
 
 		/* CDB: If EXPLAIN ANALYZE, let bitmap share our Instrumentation. */
-		if (node->ss.ps.instrument)
+		if (node->ss.ps.instrument && (node->ss.ps.instrument)->need_cdb)
 			tbm_generic_set_instrument(bitmap, node->ss.ps.instrument);
 
 		if (node->biss_result == NULL)
@@ -120,7 +120,7 @@ MultiExecBitmapIndexScan(BitmapIndexScanState *node)
 	/* must provide our own instrumentation support */
 	/* GPDB: Report "1 tuple", actually meaning "1 bitmap" */
 	if (node->ss.ps.instrument)
-		InstrStopNode(node->ss.ps.instrument, 1 /* nTuples */);
+		INSTR_STOP_NODE(node->ss.ps.instrument, 1 /* nTuples */);
 
 	return (Node *) bitmap;
 }

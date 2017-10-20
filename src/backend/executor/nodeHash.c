@@ -98,7 +98,7 @@ MultiExecHash(HashState *node)
 
 	/* must provide our own instrumentation support */
 	if (node->ps.instrument)
-		InstrStartNode(node->ps.instrument);
+		INSTR_START_NODE(node->ps.instrument);
 
 	/*
 	 * get state info from node
@@ -164,7 +164,7 @@ MultiExecHash(HashState *node)
 
 	/* must provide our own instrumentation support */
 	if (node->ps.instrument)
-		InstrStopNode(node->ps.instrument, hashtable->totalTuples);
+		INSTR_STOP_NODE(node->ps.instrument, hashtable->totalTuples);
 
 	/*
 	 * We do not return the hash table directly because it's not a subtype of
@@ -1270,7 +1270,8 @@ ExecHashTableExplainEnd(PlanState *planstate, struct StringInfoData *buf)
     if (!hashtable ||
         !hashtable->stats ||
         hashtable->nbatch < 1 ||
-        !jinstrument)
+        !jinstrument ||
+	!jinstrument->need_cdb)
         return;
 
     stats = hashtable->stats;
