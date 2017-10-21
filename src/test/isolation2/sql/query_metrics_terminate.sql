@@ -1,36 +1,5 @@
--- default value
-SHOW GP_ENABLE_QUERY_METRICS;
-SELECT 1;
-
--- turn off
-SET GP_ENABLE_QUERY_METRICS=OFF;
-SHOW GP_ENABLE_QUERY_METRICS;
-SELECT 1;
-
--- turn on
-SET GP_ENABLE_QUERY_METRICS=ON;
-SHOW GP_ENABLE_QUERY_METRICS;
-SELECT 1;
-
--- turn off
-SET GP_ENABLE_QUERY_METRICS=OFF;
-SHOW GP_ENABLE_QUERY_METRICS;
-SELECT 1;
-
--- reset
-RESET GP_ENABLE_QUERY_METRICS;
-SHOW GP_ENABLE_QUERY_METRICS;
-SELECT 1;
-
--- default value
-SHOW GP_QUERY_METRICS_PORT;
-SELECT 1;
-
-SHOW GP_MAX_SHMEM_INSTRUMENTS;
-SELECT 1;
-
 -- start_ignore
-DROP SCHEMA IF EXISTS QUERY_METRICS CASCADE; 
+DROP SCHEMA IF EXISTS QUERY_METRICS CASCADE;
 CREATE SCHEMA QUERY_METRICS;
 SET SEARCH_PATH=QUERY_METRICS;
 
@@ -80,15 +49,41 @@ SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
 SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
 SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
 
--- regression to EXPLAN ANALZE
-EXPLAIN ANALYZE SELECT 1/0;
-EXPLAIN ANALYZE SELECT count(*) FROM a where id < (1/(select count(*) where 1=0));
-EXPLAIN ANALYZE SELECT count(*) FROM a a1, a a2, a a3;
+create table foo as select i a, i b from generate_series(1, 10) i;
 
+-- expect this query terminated by 'test pg_terminate_backend'
+1&:explain analyze create temp table t as select count(*) from foo where pg_sleep(20) is null;
+-- extract the pid for the previous query
+SELECT pg_terminate_backend(procpid,'test pg_terminate_backend')
+FROM pg_stat_activity WHERE current_query like 'explain analyze create temp table t as select%' ORDER BY procpid LIMIT 1;
+1<:
+1q:
+
+-- query backend to ensure no PANIC on postmaster
+select count(*) from foo;
+
+-- ensure no instrument slot leak on fatal
+SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
+SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
+SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
+
+-- expect this query cancelled by 'test pg_cancel_backend'
+2&:explain analyze select * from pg_sleep(20);
+-- extract the pid for the previous query
+SELECT * from pg_sleep(2);
+SELECT pg_cancel_backend(procpid,'test pg_cancel_backend')
+FROM pg_stat_activity WHERE current_query like 'explain analyze select * from pg_sleep%' ORDER BY procpid LIMIT 1;
+2<:
+2q:
+
+-- query backend to ensure no PANIC on postmaster
+select count(*) from foo;
+
+-- ensure no instrument slot leak
 SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
 SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
 SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
 
 -- start_ignore
-DROP SCHEMA IF EXISTS QUERY_METRICS CASCADE; 
+DROP SCHEMA IF EXISTS QUERY_METRICS CASCADE;
 -- end_ignore

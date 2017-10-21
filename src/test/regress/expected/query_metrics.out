@@ -1,12 +1,12 @@
 -- default value
 SHOW GP_ENABLE_QUERY_METRICS;
- gp_enable_query_metrics
+ gp_enable_query_metrics 
 -------------------------
  on
 (1 row)
 
 SELECT 1;
- ?column?
+ ?column? 
 ----------
         1
 (1 row)
@@ -14,13 +14,13 @@ SELECT 1;
 -- turn off
 SET GP_ENABLE_QUERY_METRICS=OFF;
 SHOW GP_ENABLE_QUERY_METRICS;
- gp_enable_query_metrics
+ gp_enable_query_metrics 
 -------------------------
  off
 (1 row)
 
 SELECT 1;
- ?column?
+ ?column? 
 ----------
         1
 (1 row)
@@ -28,13 +28,13 @@ SELECT 1;
 -- turn on
 SET GP_ENABLE_QUERY_METRICS=ON;
 SHOW GP_ENABLE_QUERY_METRICS;
- gp_enable_query_metrics
+ gp_enable_query_metrics 
 -------------------------
  on
 (1 row)
 
 SELECT 1;
- ?column?
+ ?column? 
 ----------
         1
 (1 row)
@@ -42,13 +42,13 @@ SELECT 1;
 -- turn off
 SET GP_ENABLE_QUERY_METRICS=OFF;
 SHOW GP_ENABLE_QUERY_METRICS;
- gp_enable_query_metrics
+ gp_enable_query_metrics 
 -------------------------
  off
 (1 row)
 
 SELECT 1;
- ?column?
+ ?column? 
 ----------
         1
 (1 row)
@@ -56,27 +56,170 @@ SELECT 1;
 -- reset
 RESET GP_ENABLE_QUERY_METRICS;
 SHOW GP_ENABLE_QUERY_METRICS;
- gp_enable_query_metrics
+ gp_enable_query_metrics 
 -------------------------
  on
 (1 row)
 
 SELECT 1;
- ?column?
+ ?column? 
 ----------
         1
 (1 row)
 
 -- default value
 SHOW GP_QUERY_METRICS_PORT;
- gp_query_metrics_port
+ gp_query_metrics_port 
 -----------------------
  9898
 (1 row)
 
 SELECT 1;
- ?column?
+ ?column? 
 ----------
         1
 (1 row)
 
+SHOW GP_MAX_SHMEM_INSTRUMENTS;
+ gp_max_shmem_instruments 
+--------------------------
+ 30000
+(1 row)
+
+SELECT 1;
+ ?column? 
+----------
+        1
+(1 row)
+
+-- start_ignore
+DROP SCHEMA IF EXISTS QUERY_METRICS CASCADE; 
+NOTICE:  schema "query_metrics" does not exist, skipping
+CREATE SCHEMA QUERY_METRICS;
+SET SEARCH_PATH=QUERY_METRICS;
+CREATE EXTERNAL WEB TABLE __gp_localid
+(
+    localid    int
+)
+EXECUTE E'echo $GP_SEGMENT_ID' FORMAT 'TEXT';
+GRANT SELECT ON TABLE __gp_localid TO public;
+CREATE EXTERNAL WEB TABLE __gp_masterid
+(
+    masterid    int
+)
+EXECUTE E'echo $GP_SEGMENT_ID' ON MASTER FORMAT 'TEXT';
+GRANT SELECT ON TABLE __gp_masterid TO public;
+CREATE FUNCTION gp_instrument_shmem_summary_f()
+RETURNS SETOF RECORD
+AS '$libdir/gp_instrument_shmem', 'gp_instrument_shmem_summary'
+LANGUAGE C IMMUTABLE;
+GRANT EXECUTE ON FUNCTION gp_instrument_shmem_summary_f() TO public;
+CREATE VIEW gp_instrument_shmem_summary AS
+WITH all_entries AS (
+  SELECT C.*
+    FROM __gp_localid, gp_instrument_shmem_summary_f() as C (
+      segid int, num_free bigint, num_used bigint
+    )
+  UNION ALL
+  SELECT C.*
+    FROM __gp_masterid, gp_instrument_shmem_summary_f() as C (
+      segid int, num_free bigint, num_used bigint
+    ))
+SELECT segid, num_free, num_used
+FROM all_entries
+ORDER BY segid;
+GRANT SELECT ON gp_instrument_shmem_summary TO public;
+CREATE TABLE a (id int) DISTRIBUTED BY (id);
+INSERT INTO a SELECT * FROM generate_series(1, 50);
+SET OPTIMIZER=OFF;
+ANALYZE a;
+-- end_ignore
+SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
+ segid | num_free | num_used 
+-------+----------+----------
+    -1 |    30000 |        0
+(1 row)
+
+SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
+ segid | num_free | num_used 
+-------+----------+----------
+     0 |    30000 |        0
+(1 row)
+
+SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
+ segid | num_free | num_used 
+-------+----------+----------
+     1 |    30000 |        0
+(1 row)
+
+-- regression to EXPLAN ANALZE
+EXPLAIN ANALYZE SELECT 1/0;
+NOTICE:  division by zero
+EXPLAIN ANALYZE SELECT count(*) FROM a where id < (1/(select count(*) where 1=0));
+NOTICE:  division by zero  (seg0 slice1 10.152.10.131:41300 pid=13541)
+EXPLAIN ANALYZE SELECT count(*) FROM a a1, a a2, a a3;
+                                                                                   QUERY PLAN                                                                                    
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=5423.26..5423.27 rows=1 width=8)
+   Rows out:  1 rows with 213 ms to end, start offset by 31 ms.
+   ->  Gather Motion 2:1  (slice3; segments: 2)  (cost=5423.20..5423.24 rows=1 width=8)
+         Rows out:  2 rows at destination with 197 ms to first row, 213 ms to end, start offset by 31 ms.
+         ->  Aggregate  (cost=5423.20..5423.21 rows=1 width=8)
+               Rows out:  Avg 1.0 rows x 2 workers.  Max 1 rows (seg0) with 196 ms to end, start offset by 31 ms.
+               ->  Nested Loop  (cost=8.20..5110.70 rows=62500 width=0)
+                     Rows out:  Avg 62500.0 rows x 2 workers.  Max 62500 rows (seg0) with 60 ms to first row, 188 ms to end, start offset by 31 ms.
+                     ->  Nested Loop  (cost=4.10..106.60 rows=1250 width=0)
+                           Rows out:  Avg 1250.0 rows x 2 workers.  Max 1250 rows (seg0) with 2.467 ms to first row, 53 ms to end, start offset by 88 ms.
+                           ->  Seq Scan on a a1  (cost=0.00..2.50 rows=25 width=0)
+                                 Rows out:  Avg 25.0 rows x 2 workers.  Max 25 rows (seg0) with 0.101 ms to first row, 0.144 ms to end, start offset by 88 ms.
+                           ->  Materialize  (cost=4.10..5.10 rows=50 width=0)
+                                 Rows out:  Avg 1250.0 rows x 2 workers.  Max 1250 rows (seg0) with 2.364 ms to first row, 53 ms to end of 25 scans, start offset by 226 ms.
+                                 ->  Broadcast Motion 2:2  (slice1; segments: 2)  (cost=0.00..4.00 rows=50 width=0)
+                                       Rows out:  Avg 50.0 rows x 2 workers at destination.  Max 50 rows (seg0) with 2.275 ms to first row, 52 ms to end, start offset by 89 ms.
+                                       ->  Seq Scan on a a3  (cost=0.00..2.50 rows=25 width=0)
+                                             Rows out:  Avg 25.0 rows x 2 workers.  Max 25 rows (seg0) with 41 ms to end, start offset by 50 ms.
+                     ->  Materialize  (cost=4.10..5.10 rows=50 width=0)
+                           Rows out:  Avg 62501.0 rows x 2 workers.  Max 62501 rows (seg0) with 57 ms to first row, 125 ms to end of 1251 scans, start offset by 227 ms.
+                           ->  Broadcast Motion 2:2  (slice2; segments: 2)  (cost=0.00..4.00 rows=50 width=0)
+                                 Rows out:  Avg 50.0 rows x 2 workers at destination.  Max 50 rows (seg0) with 22 ms to first row, 57 ms to end, start offset by 31 ms.
+                                 ->  Seq Scan on a a2  (cost=0.00..2.50 rows=25 width=0)
+                                       Rows out:  Avg 25.0 rows x 2 workers.  Max 25 rows (seg0) with 0.170 ms to first row, 0.187 ms to end, start offset by 52 ms.
+ Slice statistics:
+   (slice0)    Executor memory: 386K bytes.
+   (slice1)    Executor memory: 159K bytes avg x 2 workers, 159K bytes max (seg0).
+   (slice2)    Executor memory: 159K bytes avg x 2 workers, 159K bytes max (seg0).
+   (slice3)    Executor memory: 315K bytes avg x 2 workers, 315K bytes max (seg0).
+ Statement statistics:
+   Memory used: 128000K bytes
+ Settings:  optimizer=off
+ Optimizer status: legacy query optimizer
+ Total runtime: 244.056 ms
+(34 rows)
+
+SELECT * FROM gp_instrument_shmem_summary WHERE segid = -1;
+ segid | num_free | num_used 
+-------+----------+----------
+    -1 |    30000 |        0
+(1 row)
+
+SELECT * FROM gp_instrument_shmem_summary WHERE segid = 0;
+ segid | num_free | num_used 
+-------+----------+----------
+     0 |    30000 |        0
+(1 row)
+
+SELECT * FROM gp_instrument_shmem_summary WHERE segid = 1;
+ segid | num_free | num_used 
+-------+----------+----------
+     1 |    30000 |        0
+(1 row)
+
+-- start_ignore
+DROP SCHEMA IF EXISTS QUERY_METRICS CASCADE; 
+NOTICE:  drop cascades to table a
+NOTICE:  drop cascades to view gp_instrument_shmem_summary
+NOTICE:  drop cascades to rule _RETURN on view gp_instrument_shmem_summary
+NOTICE:  drop cascades to function gp_instrument_shmem_summary_f()
+NOTICE:  drop cascades to external table __gp_masterid
+NOTICE:  drop cascades to external table __gp_localid
+-- end_ignore

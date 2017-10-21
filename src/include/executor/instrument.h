@@ -15,6 +15,8 @@
 #ifndef INSTRUMENT_H
 #define INSTRUMENT_H
 
+#include "executor/executor.h"
+#include "nodes/plannodes.h"
 #include "portability/instr_time.h"
 
 struct CdbExplain_NodeSummary;          /* private def in cdb/cdbexplain.c */
@@ -22,6 +24,7 @@ struct CdbExplain_NodeSummary;          /* private def in cdb/cdbexplain.c */
 
 typedef struct Instrumentation
 {
+	bool		in_shmem;		/* TRUE if this instrument in alloced in shmem, used for recycle */
 	/* Info about current plan cycle: */
 	bool		running;		/* TRUE if we've completed first tuple */
 	instr_time	starttime;		/* Start time of current iteration of node */
@@ -49,5 +52,36 @@ extern Instrumentation *InstrAlloc(int n);
 extern void InstrStartNode(Instrumentation *instr);
 extern void InstrStopNode(Instrumentation *instr, double nTuples);
 extern void InstrEndLoop(Instrumentation *instr);
+
+/* GPDB query metrics */
+typedef struct InstrumentationHeader
+{
+	void *head;
+	int used;
+	int free;
+	slock_t	lock;
+} InstrumentationHeader;
+
+typedef struct InstrumentationSlot
+{
+	Instrumentation data;
+	int32 eflags;			/* executor flags */
+	int32 pid;				/* process id */
+	int32 tmid;				/* transaction time */
+	int32 ssid; 			/* session id */
+	int16 ccnt;				/* command count */
+	int16 segid;			/* segment id */
+	int16 nid;				/* node id */
+} InstrumentationSlot;
+
+extern InstrumentationHeader *InstrumentGlobal;
+extern int scan_node_counter;
+extern Size InstrShmemSize(void);
+extern void InstrShmemInit(void);
+extern Instrumentation *InstrShmemPick(Plan *plan, int eflags);
+extern Instrumentation *InstrShmemRecycle(Instrumentation *instr);
+extern void InstrShmemCleanupPid(pid_t pid);
+#define GetInstrumentNext(ptr) (*((InstrumentationSlot **)(ptr+1) - 1))
+#define MAX_SCAN_ON_SHMEM 300
 
 #endif   /* INSTRUMENT_H */

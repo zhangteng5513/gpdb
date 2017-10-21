@@ -66,6 +66,7 @@
 #include "cdb/cdbmotion.h"
 #include "cdb/cdbsreh.h"
 #include "cdb/memquota.h"
+#include "executor/instrument.h"
 #include "executor/spi.h"
 #include "utils/elog.h"
 #include "miscadmin.h"
@@ -2125,6 +2126,10 @@ void mppExecutorCleanup(QueryDesc *queryDesc)
 		queryDesc->gpmon_pkt = NULL;
 	}
 
+	/* Cleanup Instrumentation slots */
+	if (queryDesc->planstate)
+		InstrumentCleanup(queryDesc->planstate);
+
 	/* Workfile manager per-query resource accounting */
 	WorkfileQueryspace_ReleaseEntry();
 
@@ -2630,3 +2635,25 @@ void AssertSliceTableIsValid(SliceTable *st, struct PlannedStmt *pstmt)
 	}
 }
 #endif
+
+static CdbVisitOpt
+InstrumentFreeWalker(PlanState *node,
+					 void *context)
+{
+	if (node->instrument)
+		node->instrument = InstrShmemRecycle(node->instrument);
+
+	return CdbVisit_Walk;
+}
+
+void InstrumentCleanup(PlanState *ps)
+{
+	MemoryContext oldcontext;
+
+	if (ps)
+	{
+		oldcontext = MemoryContextSwitchTo(ps->state->es_query_cxt);
+		planstate_walk_node(ps, InstrumentFreeWalker, NULL);
+		MemoryContextSwitchTo(oldcontext);
+	}
+}

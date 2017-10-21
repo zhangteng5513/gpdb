@@ -897,6 +897,7 @@ extern bool gp_enable_gpperfmon;
 extern int gp_gpperfmon_send_interval;
 extern bool gp_enable_query_metrics;
 extern int gp_query_metrics_port;
+extern int gp_max_shmem_instruments;
 extern bool force_bitmap_table_scan;
 
 extern bool dml_ignore_target_partition_check;

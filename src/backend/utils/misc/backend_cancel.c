@@ -18,6 +18,7 @@
 #include "postgres.h"
 
 #include "miscadmin.h"
+#include "executor/instrument.h"
 #include "storage/ipc.h"
 #include "storage/spin.h"
 #include "storage/shmem.h"
@@ -95,6 +96,10 @@ CleanupCancelBackend(int status, Datum argument)
 
 	if (slot->len > 0)
 		slot->message[0] = '\0';
+
+	/* Recycle instrument slots on backend FATAL exit */
+	if (status > 0)
+		InstrShmemCleanupPid(slot->pid);
 
 	slot->len = 0;
 	slot->pid = 0;
