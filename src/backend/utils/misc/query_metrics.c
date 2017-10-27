@@ -57,22 +57,12 @@ void metrics_init(void)
 	conn.pid = pid;
 }
 
-void metrics_send_gpmon_pkt(gpmon_packet_t* p)
-{
-	if (conn.mcsock >= 0) {
-		int n = sizeof(*p);
-		if (n != sendto(conn.mcsock, (const char *)p, n, 0, 
-						(struct sockaddr*) &conn.mcaddr, 
-						sizeof(conn.mcaddr))) {
-			elog(LOG, "metrics: cannot send (%m socket %d)", conn.mcsock);
-		}
-	}
-}
-
 void metrics_send(metrics_packet_t* p)
 {
+	int n;
+
 	if (conn.mcsock >= 0) {
-		int n = sizeof(*p);
+		n = sizeof(*p);
 		if (n != sendto(conn.mcsock, (const char *)p, n, 0, 
 						(struct sockaddr*) &conn.mcaddr, 
 						sizeof(conn.mcaddr))) {
@@ -81,17 +71,37 @@ void metrics_send(metrics_packet_t* p)
 	}
 }
 
-static void UpdateMetricsNodeInfo(metrics_packet_t *pkt, Plan *plan, MetricsNodeStatus status)
+/* Node info */
+static void MakeMetricsNodeInfo(metrics_packet_t *pkt, Plan *plan, gpmon_packet_t *gpmon_pkt, MetricsNodeStatus status)
 {
 	instr_time curr;
 
 	memset(pkt, 0x00, sizeof(metrics_packet_t));
 
-	pkt->version = GPMON_PACKET_VERSION;
+	pkt->version = METRICS_PACKET_VERSION;
 	pkt->pkttype = METRICS_PKTTYPE_NODE;
-	gpmon_gettmid(&pkt->u.node.tmid);
-	pkt->u.node.ssid = gp_session_id;
-	pkt->u.node.ccnt = gp_command_count;
+
+	if (gpmon_pkt && gpmon_pkt->pkttype == GPMON_PKTTYPE_QLOG)
+	{
+		// Copy query identities from parent QLog
+		pkt->u.node.qid.tmid = gpmon_pkt->u.qlog.key.tmid;
+		pkt->u.node.qid.ssid = gpmon_pkt->u.qlog.key.ssid;
+		pkt->u.node.qid.ccnt = gpmon_pkt->u.qlog.key.ccnt;
+	}
+	else if (gpmon_pkt && gpmon_pkt->pkttype == GPMON_PKTTYPE_QEXEC)
+	{
+		// Copy query identities from parent QExec
+		pkt->u.node.qid.tmid = gpmon_pkt->u.qexec.key.tmid;
+		pkt->u.node.qid.ssid = gpmon_pkt->u.qexec.key.ssid;
+		pkt->u.node.qid.ccnt = gpmon_pkt->u.qexec.key.ccnt;
+	}
+	else
+	{
+		gpmon_gettmid(&(pkt->u.node.qid.tmid));
+		pkt->u.node.qid.ssid = gp_session_id;
+		pkt->u.node.qid.ccnt = gp_command_count;
+	}
+
 	pkt->u.node.segid = Gp_segment;
 	pkt->u.node.pid = MyProcPid;
 	pkt->u.node.nid = plan->plan_node_id;
@@ -106,7 +116,7 @@ static void UpdateMetricsNodeInfo(metrics_packet_t *pkt, Plan *plan, MetricsNode
 	pkt->u.node.plan_rows = plan->plan_rows;
 }
 
-static void SendPlanNodeMetricsPkt(Plan *plan, MetricsNodeStatus status)
+static void SendPlanNodeMetricsPkt(Plan *plan, gpmon_packet_t *gpmon_pkt, MetricsNodeStatus status)
 {
 	metrics_packet_t pkt;
 
@@ -116,13 +126,13 @@ static void SendPlanNodeMetricsPkt(Plan *plan, MetricsNodeStatus status)
 	if(!gp_enable_query_metrics)
 		return;
 
-	UpdateMetricsNodeInfo(&pkt, plan, status);
+	MakeMetricsNodeInfo(&pkt, plan, gpmon_pkt, status);
 	metrics_send(&pkt);
 }
 
-void InitNodeMetricsInfoPkt(Plan *plan)
+void InitNodeMetricsInfoPkt(Plan *plan, QueryDesc *qd)
 {
-	SendPlanNodeMetricsPkt(plan, Node_Initialize);
+	SendPlanNodeMetricsPkt(plan, qd->gpmon_pkt, METRICS_NODE_INITIALIZE);
 }
 
 void UpdateNodeMetricsInfoPkt(PlanState *ps, MetricsNodeStatus status)
@@ -130,5 +140,46 @@ void UpdateNodeMetricsInfoPkt(PlanState *ps, MetricsNodeStatus status)
 	if(!ps || !ps->state || LocallyExecutingSliceIndex(ps->state) != currentSliceId)
 		return;
 
-	SendPlanNodeMetricsPkt(ps->plan, status);
+	SendPlanNodeMetricsPkt(ps->plan, &(ps->gpmon_pkt), status);
+}
+
+/* Query info */
+void metrics_send_query_info(QueryDesc *qd, MetricsQueryStatus status)
+{
+	metrics_packet_t pkt;
+	gpmon_qlog_t *qlog;
+
+	if (!qd)
+		return;
+
+	if (!gp_enable_query_metrics)
+		return;
+
+	if (conn.mcsock < 0)
+		return;
+
+	Assert(qd->gpmon_pkt);
+	Assert(qd->gpmon_pkt->pkttype == GPMON_PKTTYPE_QLOG);
+
+	qlog = &(qd->gpmon_pkt->u.qlog);
+
+	memset(&pkt, 0x00, sizeof(metrics_packet_t));
+	pkt.version = METRICS_PACKET_VERSION;
+	pkt.pkttype = METRICS_PKTTYPE_QUERY;
+	pkt.u.q.qid.tmid = qlog->key.tmid;
+	pkt.u.q.qid.ssid = qlog->key.ssid;
+	pkt.u.q.qid.ccnt = qlog->key.ccnt;
+	memcpy(pkt.u.q.db, qlog->db, mul_size(sizeof(char), NAMEDATALEN));
+	memcpy(pkt.u.q.user, qlog->user, mul_size(sizeof(char), NAMEDATALEN));
+	pkt.u.q.tsubmit = qlog->tsubmit;
+	pkt.u.q.tstart = qlog->tstart;
+	pkt.u.q.tfin = qlog->tfin;
+	pkt.u.q.command_type = qd->operation;
+	if (status <= METRICS_QUERY_START && qd->operation != CMD_UTILITY && qd->plannedstmt)
+	{
+		pkt.u.q.plan_gen = qd->plannedstmt->planGen;
+	}
+	pkt.u.q.status = status;
+
+	metrics_send(&pkt);
 }

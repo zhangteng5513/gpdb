@@ -253,16 +253,16 @@ void gpmon_qlog_query_submit(gpmon_packet_t *gpmonPacket)
 	
 	gpmonPacket->u.qlog.status = GPMON_QLOG_STATUS_SUBMIT;
 	gpmonPacket->u.qlog.tsubmit = tv.tv_sec;
-	
+
+	if (!gp_enable_gpperfmon)
+		return;
+
 	gpmon_record_update(gpmonPacket->u.qlog.key.tmid,
 			gpmonPacket->u.qlog.key.ssid,
 			gpmonPacket->u.qlog.key.ccnt,
 			gpmonPacket->u.qlog.status);
 
-	if (gp_enable_gpperfmon)
-		gpmon_send(gpmonPacket);
-	if (gp_enable_query_metrics)
-		metrics_send_gpmon_pkt(gpmonPacket);
+	gpmon_send(gpmonPacket);
 }
 
 /**
@@ -287,6 +287,9 @@ void gpmon_qlog_query_text(const gpmon_packet_t *gpmonPacket,
 		const char *resqPriority)
 {
 	GPMON_QLOG_PACKET_ASSERTS(gpmonPacket);
+
+	if (!gp_enable_gpperfmon)
+		return;
 
 	queryText = gpmon_null_subst(queryText);
 	appName = gpmon_null_subst(appName);
@@ -338,16 +341,16 @@ void gpmon_qlog_query_start(gpmon_packet_t *gpmonPacket)
 	
 	gpmonPacket->u.qlog.status = GPMON_QLOG_STATUS_START;
 	gpmonPacket->u.qlog.tstart = tv.tv_sec;
-	
+
+	if (!gp_enable_gpperfmon)
+		return;
+
 	gpmon_record_update(gpmonPacket->u.qlog.key.tmid,
 			gpmonPacket->u.qlog.key.ssid,
 			gpmonPacket->u.qlog.key.ccnt,
 			gpmonPacket->u.qlog.status);
 
-	if (gp_enable_gpperfmon)
-		gpmon_send(gpmonPacket);
-	if (gp_enable_query_metrics)
-		metrics_send_gpmon_pkt(gpmonPacket);
+	gpmon_send(gpmonPacket);
 }
 
 /**
@@ -363,16 +366,16 @@ void gpmon_qlog_query_end(gpmon_packet_t *gpmonPacket)
 	
 	gpmonPacket->u.qlog.status = GPMON_QLOG_STATUS_DONE;
 	gpmonPacket->u.qlog.tfin = tv.tv_sec;
+
+	if (!gp_enable_gpperfmon)
+		return;
 	
 	gpmon_record_update(gpmonPacket->u.qlog.key.tmid,
 			gpmonPacket->u.qlog.key.ssid,
 			gpmonPacket->u.qlog.key.ccnt,
 			gpmonPacket->u.qlog.status);
 
-	if (gp_enable_gpperfmon)
-		gpmon_send(gpmonPacket);
-	if (gp_enable_query_metrics)
-		metrics_send_gpmon_pkt(gpmonPacket);
+	gpmon_send(gpmonPacket);
 }
 
 /**
@@ -388,19 +391,19 @@ void gpmon_qlog_query_error(gpmon_packet_t *gpmonPacket)
 		   gpmonPacket->u.qlog.status == GPMON_QLOG_STATUS_CANCELING);
 
 	gettimeofday(&tv, 0);
-	
+
 	gpmonPacket->u.qlog.status = GPMON_QLOG_STATUS_ERROR;
 	gpmonPacket->u.qlog.tfin = tv.tv_sec;
-	
+
+	if (!gp_enable_gpperfmon)
+		return;
+
 	gpmon_record_update(gpmonPacket->u.qlog.key.tmid,
 			gpmonPacket->u.qlog.key.ssid,
 			gpmonPacket->u.qlog.key.ccnt,
 			gpmonPacket->u.qlog.status);
 
-	if (gp_enable_gpperfmon)
-		gpmon_send(gpmonPacket);
-	if (gp_enable_query_metrics)
-		metrics_send_gpmon_pkt(gpmonPacket);
+	gpmon_send(gpmonPacket);
 }
 
 /*
@@ -415,15 +418,15 @@ gpmon_qlog_query_canceling(gpmon_packet_t *gpmonPacket)
 		   gpmonPacket->u.qlog.status == GPMON_QLOG_STATUS_SUBMIT);
 
 	gpmonPacket->u.qlog.status = GPMON_QLOG_STATUS_CANCELING;
-	
+
+	if (!gp_enable_gpperfmon)
+		return;
+
 	gpmon_record_update(gpmonPacket->u.qlog.key.tmid,
 			gpmonPacket->u.qlog.key.ssid,
 			gpmonPacket->u.qlog.key.ccnt,
 			gpmonPacket->u.qlog.status);
 
-	if (gp_enable_gpperfmon)
-		gpmon_send(gpmonPacket);
-	if (gp_enable_query_metrics)
-		metrics_send_gpmon_pkt(gpmonPacket);
+	gpmon_send(gpmonPacket);
 }
 

@@ -73,6 +73,7 @@
 #include "nodes/makefuncs.h"
 #include "storage/ipc.h"
 #include "cdb/cdbllize.h"
+#include "utils/query_metrics.h"
 #include "utils/workfile_mgr.h"
 
 #include "cdb/memquota.h"
@@ -2069,6 +2070,7 @@ void mppExecutorCleanup(QueryDesc *queryDesc)
 		QueryCancelCleanup)
 	{			
 		gpmon_qlog_query_canceling(queryDesc->gpmon_pkt);
+		metrics_send_query_info(queryDesc, METRICS_QUERY_CANCELING);
 
 		if (gp_cancel_query_print_log)
 		{
@@ -2122,6 +2124,7 @@ void mppExecutorCleanup(QueryDesc *queryDesc)
 			&& queryDesc->gpmon_pkt)
 	{			
 		gpmon_qlog_query_error(queryDesc->gpmon_pkt);
+		metrics_send_query_info(queryDesc, METRICS_QUERY_ERROR);
 		pfree(queryDesc->gpmon_pkt);
 		queryDesc->gpmon_pkt = NULL;
 	}

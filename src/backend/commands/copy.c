@@ -58,6 +58,7 @@
 #include "cdb/cdbcopy.h"
 #include "cdb/cdbsreh.h"
 #include "postmaster/autostats.h"
+#include "utils/query_metrics.h"
 #include "utils/resscheduler.h"
 
 extern int popen_with_stderr(int *rwepipe, const char *exe, bool forwrite);
@@ -1590,6 +1591,7 @@ DoCopyInternal(const CopyStmt *stmt, const char *queryString, CopyState cstate)
 					application_name,
 					GetResqueueName(GetResQueueId()),
 					GetResqueuePriority(GetResQueueId()));
+			metrics_send_query_info(cstate->queryDesc, METRICS_QUERY_SUBMIT);
 		}
 
 		/*

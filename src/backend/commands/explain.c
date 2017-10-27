@@ -49,6 +49,7 @@
 #include "cdb/cdbpathlocus.h"
 #include "cdb/memquota.h"
 #include "miscadmin.h"
+#include "utils/query_metrics.h"
 #include "utils/resscheduler.h"
 
 #ifdef USE_ORCA
@@ -401,6 +402,7 @@ ExplainOnePlan(PlannedStmt *plannedstmt, ExplainStmt *stmt,
 				application_name,
 				GetResqueueName(GetResQueueId()),
 				GetResqueuePriority(GetResQueueId()));
+		metrics_send_query_info(queryDesc, METRICS_QUERY_SUBMIT);
 	}
 
     /*

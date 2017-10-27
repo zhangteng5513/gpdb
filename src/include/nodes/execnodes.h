@@ -29,7 +29,6 @@
 #include "utils/tuplestore.h"
 
 #include "gpmon/gpmon.h"                /* gpmon_packet_t */
-#include "utils/query_metrics.h"
 
 /*
  * partition selector ids start from 1. Sometimes we use 0 to initialize variables
@@ -1410,9 +1409,6 @@ extern void EndPlanStateGpmonPkt(PlanState *ps);
 extern void InitPlanNodeGpmonPkt(Plan* plan, gpmon_packet_t *gpmon_pkt, EState *estate);
 extern void InitQexecPacket(Plan *plan, gpmon_packet_t *gpmon_pkt);
 
-/* Query Metrics helper functions in query_metrics.c */
-extern void InitNodeMetricsInfoPkt(Plan* plan);
-extern void UpdateNodeMetricsInfoPkt(PlanState *ps, MetricsNodeStatus status);
 
 extern uint64 PlanStateOperatorMemKB(const PlanState *ps);
 

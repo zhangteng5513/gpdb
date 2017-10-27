@@ -34,6 +34,7 @@
 #include "executor/functions.h"
 #include "cdb/memquota.h"
 #include "parser/analyze.h"
+#include "utils/query_metrics.h"
 
 /*
  * Update the legacy 32-bit processed counter, but handle overflow.
@@ -1915,6 +1916,7 @@ _SPI_execute_plan(SPIPlanPtr plan, ParamListInfo paramLI,
 										  application_name,
 										  NULL /* resqueue name */,
 										  NULL /* priority */);
+					metrics_send_query_info(qdesc, METRICS_QUERY_SUBMIT);
 				}
 				else
 				{
