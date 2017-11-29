@@ -59,13 +59,15 @@ void metrics_init(void)
 
 void metrics_send(metrics_packet_t* p)
 {
-	int n;
+	int			n;
+	n = sizeof(*p);
 
-	if (conn.mcsock >= 0) {
-		n = sizeof(*p);
-		if (n != sendto(conn.mcsock, (const char *)p, n, 0, 
-						(struct sockaddr*) &conn.mcaddr, 
-						sizeof(conn.mcaddr))) {
+	if (conn.mcsock >= 0)
+	{
+		if (n != sendto(conn.mcsock, p, n, 0,
+						(struct sockaddr *) &conn.mcaddr,
+						sizeof(conn.mcaddr)))
+		{
 			elog(LOG, "metrics: cannot send (%m socket %d)", conn.mcsock);
 		}
 	}
@@ -166,14 +168,13 @@ void metrics_send_query_info(QueryDesc *qd, MetricsQueryStatus status)
 	memset(&pkt, 0x00, sizeof(metrics_packet_t));
 	pkt.version = METRICS_PACKET_VERSION;
 	pkt.pkttype = METRICS_PKTTYPE_QUERY;
-	pkt.u.q.qid.tmid = qlog->key.tmid;
-	pkt.u.q.qid.ssid = qlog->key.ssid;
-	pkt.u.q.qid.ccnt = qlog->key.ccnt;
+	COPY_QUERYID_FROM_GPMON_QLOG_PKT(pkt.u.q.qid, qlog);
 	memcpy(pkt.u.q.db, qlog->db, mul_size(sizeof(char), NAMEDATALEN));
 	memcpy(pkt.u.q.user, qlog->user, mul_size(sizeof(char), NAMEDATALEN));
 	pkt.u.q.tsubmit = qlog->tsubmit;
 	pkt.u.q.tstart = qlog->tstart;
 	pkt.u.q.tfin = qlog->tfin;
+	pkt.u.q.master_pid = MyProcPid;
 	pkt.u.q.command_type = qd->operation;
 	if (status <= METRICS_QUERY_START && qd->operation != CMD_UTILITY && qd->plannedstmt)
 	{
@@ -182,4 +183,25 @@ void metrics_send_query_info(QueryDesc *qd, MetricsQueryStatus status)
 	pkt.u.q.status = status;
 
 	metrics_send(&pkt);
+	if (status != METRICS_QUERY_SUBMIT) {
+		return;
+	}
+	metrics_packet_t long_pkt;
+	memset(&long_pkt, 0x00, sizeof(metrics_packet_t));
+	long_pkt.version = METRICS_PACKET_VERSION;
+	long_pkt.pkttype = METRICS_PKTTYPE_QUERY_TEXT;	
+	COPY_QUERYID_FROM_GPMON_QLOG_PKT(long_pkt.u.query_text.qid, qlog);
+	int text_len;
+	text_len = strlen(qd->sourceText);
+	long_pkt.u.query_text.total = (text_len > MAXQUERYTEXTLEN) ? (int16)(text_len/MAXQUERYTEXTLEN)+1 : 1;
+	int packet_number = (long_pkt.u.query_text.total > MAXQUERYPACKETNUM) ? MAXQUERYPACKETNUM : long_pkt.u.query_text.total;
+	for (int i = 0; i < packet_number; i++)
+	{
+		long_pkt.u.query_text.seq_id = i;
+		int copy_length, leftover;
+		leftover = text_len - i*MAXQUERYTEXTLEN;
+		copy_length = (leftover < MAXQUERYTEXTLEN) ? leftover : MAXQUERYTEXTLEN;
+		memcpy(long_pkt.u.query_text.content, qd->sourceText + i*MAXQUERYTEXTLEN, copy_length);
+		metrics_send(&long_pkt);
+	}	
 }

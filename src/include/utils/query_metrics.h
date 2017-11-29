@@ -50,7 +50,8 @@ enum metrics_pkttype_t {
 	METRICS_PKTTYPE_NONE = 0,
 	METRICS_PKTTYPE_NODE = 20,
 	METRICS_PKTTYPE_INSTR = 21,
-	METRICS_PKTTYPE_QUERY = 22
+	METRICS_PKTTYPE_QUERY = 22,
+	METRICS_PKTTYPE_QUERY_TEXT = 23
 };
 
 typedef struct metrics_query_id {
@@ -77,32 +78,54 @@ typedef struct metrics_node_t
 
 typedef struct metrics_query_t
 {
-	metrics_query_id	qid;
-	char				user[NAMEDATALEN];
-	char				db[NAMEDATALEN];
-	int32				tsubmit, tstart, tfin;
-	int16				status;
-	int16				command_type;	/* select|insert|update|delete */
-	int16				plan_gen;		/* planner|orca */
+	metrics_query_id qid;
+	char		user[NAMEDATALEN];
+	char		db[NAMEDATALEN];
+	int32		tsubmit,
+				tstart,
+				tfin;
+	int32		master_pid;
+	int16		status;
+	int16		command_type;	/* select|insert|update|delete */
+	int16		plan_gen;		/* planner|orca */
 } metrics_query_t;
 
-typedef struct metrics_packet_t {
-  	int16 version;
-  	int16 pkttype;
-	union {
+#define MAXQUERYTEXTLEN 256
+#define MAXQUERYPACKETNUM 100
+typedef struct metrics_query_text_t {
+	metrics_query_id qid;
+	int16 total;
+	int16 seq_id;
+	char content[MAXQUERYTEXTLEN];
+} metrics_query_text_t;
+
+
+typedef struct metrics_packet_t
+{
+	int16		version;
+	int16		pkttype;
+	union
+	{
 		metrics_query_t q;
 		metrics_node_t node;
-	} u;
+		metrics_query_text_t query_text;
+	}			u;
 } metrics_packet_t;
-
 /* GUCs */
 extern int gp_query_metrics_port;
 
 /* Interface */
 extern void metrics_init(void);
+extern void metrics_sendN(int n, const char *p);
 extern void metrics_send(metrics_packet_t *p);
+extern void metrics_send_long(metrics_packet_t *p);
 
 extern void metrics_send_query_info(QueryDesc *qd, MetricsQueryStatus status);
 extern void InitNodeMetricsInfoPkt(Plan* plan, QueryDesc *qd);
 extern void UpdateNodeMetricsInfoPkt(PlanState *ps, MetricsNodeStatus status);
-#endif /* QUERY_METRICS_H */
+#define COPY_QUERYID_FROM_GPMON_QLOG_PKT(qid, gpmonpkt) do { \
+	qid.tmid = gpmonpkt->key.tmid; \
+	qid.ssid = gpmonpkt->key.ssid; \
+	qid.ccnt = gpmonpkt->key.ccnt; \
+} while(0)
+#endif   /* QUERY_METRICS_H */
