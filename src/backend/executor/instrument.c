@@ -157,7 +157,7 @@ InstrShmemInit(void)
 		ereport(FATAL, (errcode(ERRCODE_OUT_OF_MEMORY), errmsg("out of shared memory")));
 
 	/* Initialize header and all slots to zeroes, then modify as needed */
-	MemSet(header, 0x00, size);
+	memset(header, PATTERN, size);
 
 	/* pointer to the first Instrumentation slot */
 	slot = (InstrumentationSlot*)(header + 1);
@@ -171,7 +171,6 @@ InstrShmemInit(void)
 	/* Each slot points to next one to construct the free list */
 	for (i = 0; i < gp_max_shmem_instruments - 1; i++)
 		GetInstrumentNext(&slot[i]) = &slot[i + 1];
-	GetInstrumentNext(&slot[i]) = NULL;
 
 	/* Finished init the free list */
 	InstrumentGlobal = header;
@@ -199,7 +198,7 @@ InstrShmemPick(Plan *plan, int eflags, int instrument_options)
 
 		/* Pick the first free slot */
 		slot = InstrumentGlobal->head;
-		if (NULL != slot)
+		if (NULL != slot && SlotIsEmpty(slot))
 		{
 			/* Header points to the next free slot */
 			InstrumentGlobal->head = GetInstrumentNext(slot);
@@ -209,9 +208,10 @@ InstrShmemPick(Plan *plan, int eflags, int instrument_options)
 
 		SpinLockRelease(&InstrumentGlobal->lock);
 
-		if (NULL != slot) {
+		if (NULL != slot && SlotIsEmpty(slot))
+		{
+			memset(slot, 0x00, sizeof(InstrumentationSlot));
 			/* initialize the picked slot */
-			GetInstrumentNext(slot) = NULL;
 			instr = &(slot->data);
 			instr->in_shmem = true;
 			slot->segid = Gp_segment;
@@ -276,7 +276,7 @@ static Instrumentation *InstrShmemRecycle(Instrumentation *instr)
 		clone->in_shmem = false;
 	}
 
-	MemSet(slot, 0x00, sizeof(InstrumentationSlot));
+	memset(slot, PATTERN, sizeof(InstrumentationSlot));
 
 	SpinLockAcquire(&InstrumentGlobal->lock);
 
