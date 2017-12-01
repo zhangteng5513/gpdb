@@ -49,7 +49,6 @@ typedef enum MetricsQueryStatus
 enum metrics_pkttype_t {
 	METRICS_PKTTYPE_NONE = 0,
 	METRICS_PKTTYPE_NODE = 20,
-	METRICS_PKTTYPE_INSTR = 21,
 	METRICS_PKTTYPE_QUERY = 22,
 	METRICS_PKTTYPE_QUERY_TEXT = 23
 };

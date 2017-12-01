@@ -2124,7 +2124,11 @@ void mppExecutorCleanup(QueryDesc *queryDesc)
 			&& queryDesc->gpmon_pkt)
 	{			
 		gpmon_qlog_query_error(queryDesc->gpmon_pkt);
-		metrics_send_query_info(queryDesc, METRICS_QUERY_ERROR);
+		if (!QueryCancelCleanup)
+		{
+			/* Don't send Error info for Cancelled query */
+			metrics_send_query_info(queryDesc, METRICS_QUERY_ERROR);
+		}
 		pfree(queryDesc->gpmon_pkt);
 		queryDesc->gpmon_pkt = NULL;
 	}
