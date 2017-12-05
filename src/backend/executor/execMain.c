@@ -1921,7 +1921,7 @@ InitPlan(QueryDesc *queryDesc, int eflags)
 			 *
 			 * GPDB: We always set the REWIND flag, to delay eagerfree.
 			 */
-			sp_eflags = eflags & (EXEC_FLAG_EXPLAIN_ONLY | EXEC_FLAG_EXPLAIN_ANALYZE);
+			sp_eflags = eflags & (EXEC_FLAG_EXPLAIN_ONLY);
 			sp_eflags |= EXEC_FLAG_REWIND;
 
 			Plan	   *subplan = (Plan *) lfirst(l);
