@@ -171,6 +171,7 @@ InstrShmemInit(void)
 	/* Each slot points to next one to construct the free list */
 	for (i = 0; i < gp_max_shmem_instruments - 1; i++)
 		GetInstrumentNext(&slot[i]) = &slot[i + 1];
+	GetInstrumentNext(&slot[i]) = NULL;
 
 	/* Finished init the free list */
 	InstrumentGlobal = header;

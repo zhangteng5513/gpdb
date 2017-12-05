@@ -67,8 +67,8 @@ gp_instrument_shmem_summary(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		values[1] = NULL;
-		values[2] = NULL;
+		nulls[1] = true;
+		nulls[2] = true;
 	}
 	HeapTuple tuple = heap_form_tuple(tupdesc, values, nulls);
 	Datum result = HeapTupleGetDatum(tuple);
@@ -158,29 +158,20 @@ gp_instrument_shmem_detail(PG_FUNCTION_ARGS)
 		Datum		values[nattr];
 		bool		nulls[nattr];
 
-		MemSet(nulls, 0, sizeof(nulls));
+		memset(nulls, 0, sizeof(nulls));
 
-		if (InstrumentGlobal)
-		{
-			values[0] = Int32GetDatum((slot -> tmid));
-			values[1] = Int32GetDatum(slot -> ssid);
-			values[2] = Int16GetDatum(slot -> ccnt);
-			values[3] = Int16GetDatum(slot -> segid);
-			values[4] = Int32GetDatum(slot -> pid);
-			values[5] = Int16GetDatum(slot -> nid);
-			values[6] = Int64GetDatum((int64)((slot -> data).tuplecount));
-			values[7] = Int64GetDatum((int64)((slot -> data).ntuples));
-			values[8] = Int64GetDatum((int64)((slot -> data).nloops));
-		}
-		else
-		{
-			memset(values, 0x00, sizeof(values));
-		}
+		values[0] = Int32GetDatum((slot -> tmid));
+		values[1] = Int32GetDatum(slot -> ssid);
+		values[2] = Int16GetDatum(slot -> ccnt);
+		values[3] = Int16GetDatum(slot -> segid);
+		values[4] = Int32GetDatum(slot -> pid);
+		values[5] = Int16GetDatum(slot -> nid);
+		values[6] = Int64GetDatum((int64)((slot -> data).tuplecount));
+		values[7] = Int64GetDatum((int64)((slot -> data).ntuples));
+		values[8] = Int64GetDatum((int64)((slot -> data).nloops));
 
 		HeapTuple tuple = heap_form_tuple(funcctx->tuple_desc, values, nulls);
 		Datum result = HeapTupleGetDatum(tuple);
 		SRF_RETURN_NEXT(funcctx, result);
 	}
-
 }
-
