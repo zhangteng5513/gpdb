@@ -125,7 +125,8 @@ extern void InstrShmemInit(void);
 extern Instrumentation *InstrShmemPick(Plan *plan, int eflags, int instrument_options);
 extern void InstrShmemRecycleCallback(ResourceReleasePhase phase, bool isCommit, bool isTopLevel, void *arg);
 #define PATTERN 0xd5
-#define SlotIsEmpty(slot) ((*((char*)(slot)) ^ PATTERN) == 0 && (*((char*)((InstrumentationSlot**)((slot) + 1) - 1) - 1) ^ PATTERN) == 0)
+#define MASK 3
+#define SlotIsEmpty(slot) (((*((char*)(slot)) ^ PATTERN) & MASK) == 0 && ((*((char*)((InstrumentationSlot**)((slot) + 1) - 1) - 1) ^ PATTERN) & MASK) == 0) 
 #define GetInstrumentNext(ptr) (*((InstrumentationSlot **)(ptr+1) - 1))
 #define MAX_SCAN_ON_SHMEM 300
 
