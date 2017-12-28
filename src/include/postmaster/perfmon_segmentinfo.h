@@ -28,4 +28,14 @@ extern int gp_perfmon_segment_interval;
 /* Interface */
 extern int perfmon_segmentinfo_start(void);
 
+/*
+ * Metrics collector hooks
+ *
+ * This hook can be set by an extension to send metrics data for monitoring purpose
+ */
+typedef void (*metrics_collector_hook_type)(void);
+extern PGDLLIMPORT metrics_collector_hook_type metrics_collector_hook;
+
+#define SEGMENT_INFO_LOOP_SLEEP_MS (100)
+
 #endif /* PERFMON_SEGMENTINFO_H */

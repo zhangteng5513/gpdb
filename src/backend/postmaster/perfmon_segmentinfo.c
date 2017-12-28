@@ -57,6 +57,9 @@ static gpmon_packet_t seginfopkt;
 static void InitSegmentInfoGpmonPkt(gpmon_packet_t *gpmon_pkt);
 static void UpdateSegmentInfoGpmonPkt(gpmon_packet_t *gpmon_pkt);
 
+/* hook function for periodically send metrics data */
+metrics_collector_hook_type metrics_collector_hook = NULL;
+
 /**
  * Main entry point for segment info process. This forks off a sender process
  * and calls SegmentInfoSenderMain(), which does all the setup.
@@ -191,8 +194,10 @@ NON_EXEC_STATIC void SegmentInfoSenderMain(int argc, char *argv[])
 static void
 SegmentInfoSenderLoop(void)
 {
+	int rc;
+	int counter;
 
-	for (;;)
+	for (counter = 0;; counter += SEGMENT_INFO_LOOP_SLEEP_MS)
 	{
 		CHECK_FOR_INTERRUPTS();
 
@@ -205,11 +210,25 @@ SegmentInfoSenderLoop(void)
 		if (!PostmasterIsAlive(true))
 			exit(1);
 
-		SegmentInfoSender();
+		if (metrics_collector_hook)
+			metrics_collector_hook();
+
+		if (counter >= gp_perfmon_segment_interval)
+		{
+			SegmentInfoSender();
+			counter = 0;
+		}
 
 		/* Sleep a while. */
 		Assert(gp_perfmon_segment_interval > 0);
-		pg_usleep(gp_perfmon_segment_interval * 1000);
+		rc = WaitLatch(&MyProc->procLatch,
+				WL_LATCH_SET | WL_TIMEOUT | WL_POSTMASTER_DEATH,
+				SEGMENT_INFO_LOOP_SLEEP_MS);
+		ResetLatch(&MyProc->procLatch);
+
+		/* emergency bailout if postmaster has died */
+		if (rc & WL_POSTMASTER_DEATH)
+			proc_exit(1);
 	} /* end server loop */
 
 	return;
