@@ -31,10 +31,10 @@
 #include "utils/builtins.h"
 #include "utils/datum.h"
 #include "utils/lsyscache.h"
-#include "utils/query_metrics.h"
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
 #include "utils/typcache.h"
+#include "utils/metrics_utils.h"
 #include "catalog/namespace.h"
 #include "catalog/pg_namespace.h"
 #include "cdb/cdbvars.h"
@@ -551,8 +551,12 @@ postquel_start(execution_state *es, SQLFunctionCachePtr fcache)
 								 dest,
 								 fcache->paramLI,
 								 (gp_enable_query_metrics ? INSTRUMENT_ROWS : 0));
+		
+		/* Metrics Hook */
+		if (query_metrics_entry_hook)
+			(*query_metrics_entry_hook)(METRICS_QUERY_SUBMIT, es->qd);
 
-		if ((gp_enable_gpperfmon || gp_enable_query_metrics)
+		if (gp_enable_gpperfmon
 			&& Gp_role == GP_ROLE_DISPATCH 
 			&& log_min_messages < DEBUG4)
 		{
@@ -564,7 +568,6 @@ postquel_start(execution_state *es, SQLFunctionCachePtr fcache)
 					application_name,
 					NULL /* resqueue name */,
 					NULL /* priority */);
-			metrics_send_query_info(es->qd, METRICS_QUERY_SUBMIT);
 
 		}
 		else

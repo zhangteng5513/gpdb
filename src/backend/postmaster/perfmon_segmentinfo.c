@@ -32,6 +32,7 @@
 #include "storage/backendid.h"
 #include "storage/pmsignal.h"			/* PostmasterIsAlive */
 
+#include "utils/metrics_utils.h"
 #include "utils/resowner.h"
 #include "utils/ps_status.h"
 
@@ -59,6 +60,9 @@ static void UpdateSegmentInfoGpmonPkt(gpmon_packet_t *gpmon_pkt);
 
 /* hook function for periodically send metrics data */
 metrics_collector_hook_type metrics_collector_hook = NULL;
+
+/* hook function for real-time query status report */
+query_metrics_entry_hook_type query_metrics_entry_hook = NULL;
 
 /**
  * Main entry point for segment info process. This forks off a sender process

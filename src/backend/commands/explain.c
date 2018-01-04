@@ -37,6 +37,7 @@
 #include "utils/json.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"             /* AllocSetContextCreate() */
+#include "utils/metrics_utils.h"
 #include "utils/tuplesort.h"
 #include "utils/snapmgr.h"
 
@@ -49,7 +50,6 @@
 #include "cdb/cdbpathlocus.h"
 #include "cdb/memquota.h"
 #include "miscadmin.h"
-#include "utils/query_metrics.h"
 #include "utils/resscheduler.h"
 
 #ifdef USE_ORCA
@@ -393,7 +393,7 @@ ExplainOnePlan(PlannedStmt *plannedstmt, ExplainStmt *stmt,
 								None_Receiver, params,
 								instrument_option);
 
-	if ((gp_enable_gpperfmon || gp_enable_query_metrics) && Gp_role == GP_ROLE_DISPATCH)
+	if (gp_enable_gpperfmon && Gp_role == GP_ROLE_DISPATCH)
 	{
 		Assert(queryString);
 		gpmon_qlog_query_submit(queryDesc->gpmon_pkt);
@@ -402,8 +402,11 @@ ExplainOnePlan(PlannedStmt *plannedstmt, ExplainStmt *stmt,
 				application_name,
 				GetResqueueName(GetResQueueId()),
 				GetResqueuePriority(GetResQueueId()));
-		metrics_send_query_info(queryDesc, METRICS_QUERY_SUBMIT);
 	}
+
+	/* Metrics Hook */
+	if (query_metrics_entry_hook) 
+		(*query_metrics_entry_hook)(METRICS_QUERY_SUBMIT, queryDesc);
 
     /*
      * Start timing.

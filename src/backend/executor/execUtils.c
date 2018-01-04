@@ -74,8 +74,8 @@
 #include "nodes/makefuncs.h"
 #include "storage/ipc.h"
 #include "cdb/cdbllize.h"
-#include "utils/query_metrics.h"
 #include "utils/workfile_mgr.h"
+#include "utils/metrics_utils.h"
 
 #include "cdb/memquota.h"
 
@@ -2101,17 +2101,20 @@ void mppExecutorCleanup(QueryDesc *queryDesc)
 	/* caller must have switched into per-query memory context already */
 	estate = queryDesc->estate;
 
+	/* Metrics Hook */
+	if (query_metrics_entry_hook && QueryCancelCleanup)
+		(*query_metrics_entry_hook)(METRICS_QUERY_CANCELING, queryDesc);
+	
 	/*
 	 * If this query is being canceled, record that when the gpperfmon
 	 * is enabled.
 	 */
-	if ((gp_enable_gpperfmon || gp_enable_query_metrics) &&
+	if (gp_enable_gpperfmon &&
 		Gp_role == GP_ROLE_DISPATCH &&
 		queryDesc->gpmon_pkt &&
 		QueryCancelCleanup)
 	{			
 		gpmon_qlog_query_canceling(queryDesc->gpmon_pkt);
-		metrics_send_query_info(queryDesc, METRICS_QUERY_CANCELING);
 
 		if (gp_cancel_query_print_log)
 		{
@@ -2156,20 +2159,19 @@ void mppExecutorCleanup(QueryDesc *queryDesc)
 		TeardownInterconnect(estate->interconnect_context, estate->motionlayer_context, true /* force EOS */, true);
 		estate->es_interconnect_is_setup = false;
 	}
+
+	/* Metrics Hook */
+	if (query_metrics_entry_hook)
+		(*query_metrics_entry_hook)(QueryCancelCleanup ? METRICS_QUERY_CANCELED : METRICS_QUERY_ERROR, queryDesc);
 	
 	/**
 	 * Perfmon related stuff.
 	 */
-	if ((gp_enable_gpperfmon || gp_enable_query_metrics)
+	if (gp_enable_gpperfmon
 			&& Gp_role == GP_ROLE_DISPATCH
 			&& queryDesc->gpmon_pkt)
 	{			
 		gpmon_qlog_query_error(queryDesc->gpmon_pkt);
-		if (!QueryCancelCleanup)
-		{
-			/* Don't send Error info for Cancelled query */
-			metrics_send_query_info(queryDesc, METRICS_QUERY_ERROR);
-		}
 		pfree(queryDesc->gpmon_pkt);
 		queryDesc->gpmon_pkt = NULL;
 	}

@@ -34,6 +34,7 @@
 #include "utils/resource_manager.h"
 #include "utils/resscheduler.h"
 #include "utils/faultinjector.h"
+#include "utils/metrics_utils.h"
 
 #include "cdb/cdbvars.h"
 #include "miscadmin.h"
@@ -43,7 +44,6 @@
 #include "executor/functions.h"
 #include "cdb/memquota.h"
 #include "parser/analyze.h"
-#include "utils/query_metrics.h"
 
 uint64		SPI_processed = 0;
 Oid			SPI_lastoid = InvalidOid;
@@ -1905,7 +1905,11 @@ _SPI_execute_plan(SPIPlanPtr plan, ParamListInfo paramLI,
 										dest,
 										paramLI, 0);
 
-				if ((gp_enable_gpperfmon || gp_enable_query_metrics) 
+				/* Metrics Hook */
+				if (query_metrics_entry_hook)
+					(*query_metrics_entry_hook)(METRICS_QUERY_SUBMIT, qdesc);
+			
+				if (gp_enable_gpperfmon 
 						&& Gp_role == GP_ROLE_DISPATCH 
 						&& log_min_messages < DEBUG4)
 				{
@@ -1917,7 +1921,6 @@ _SPI_execute_plan(SPIPlanPtr plan, ParamListInfo paramLI,
 										  application_name,
 										  NULL /* resqueue name */,
 										  NULL /* priority */);
-					metrics_send_query_info(qdesc, METRICS_QUERY_SUBMIT);
 				}
 				else
 				{

@@ -1418,8 +1418,6 @@ typedef struct PlanState
 extern void CheckSendPlanStateGpmonPkt(PlanState *ps);
 extern void EndPlanStateGpmonPkt(PlanState *ps);
 extern void InitPlanNodeGpmonPkt(Plan* plan, gpmon_packet_t *gpmon_pkt, EState *estate);
-extern void InitQexecPacket(Plan *plan, gpmon_packet_t *gpmon_pkt);
-
 
 extern uint64 PlanStateOperatorMemKB(const PlanState *ps);
 

@@ -132,7 +132,7 @@
 #include "pg_trace.h"
 #include "tcop/tcopprot.h"
 #include "utils/debugbreak.h"
-#include "utils/query_metrics.h"
+#include "utils/metrics_utils.h"
 
 #include "codegen/codegen_wrapper.h"
 
@@ -1069,8 +1069,9 @@ ExecProcNode(PlanState *node)
 
 	if(!node->fHadSentMetrics)
 	{
-		/* GPDB send query metrics packet for node start executing */
-		UpdateNodeMetricsInfoPkt(node, METRICS_NODE_EXECUTING);
+		/* Metrics Hook */
+		if (query_metrics_entry_hook)
+			(*query_metrics_entry_hook)(METRICS_NODE_EXECUTING, node);
 		node->fHadSentMetrics = true;
 	}
 
@@ -1869,8 +1870,9 @@ ExecEndNode(PlanState *node)
 			elog(ERROR, "unrecognized node type: %d", (int) nodeTag(node));
 			break;
 	}
-	/* GPDB send query metrics packet for node finish */
-	UpdateNodeMetricsInfoPkt(node, METRICS_NODE_FINISHED);
+	/* Metrics Hook */
+	if (query_metrics_entry_hook)
+		(*query_metrics_entry_hook)(METRICS_NODE_FINISHED, node);
 
 	if (codegen)
 	{
