@@ -886,8 +886,6 @@ extern bool gpvars_assign_gp_gpperfmon_send_interval(int newval, bool doit, GucS
 extern bool gp_enable_gpperfmon;
 extern int gp_gpperfmon_send_interval;
 extern bool gp_enable_query_metrics;
-extern bool gp_enable_send_queryinfo;
-extern int gp_query_metrics_port;
 extern int gp_max_shmem_instruments;
 extern bool force_bitmap_table_scan;
 

@@ -540,8 +540,6 @@ static char *gp_server_version_string;
 
 /* Query Metrics */
 bool		gp_enable_query_metrics = true;
-bool		gp_enable_send_queryinfo = true;
-int			gp_query_metrics_port = 9898;
 int			gp_max_shmem_instruments = 30000;
 
 /* Security */
@@ -2026,16 +2024,6 @@ struct config_bool ConfigureNamesBool_gp[] =
 			NULL	
 		},
 		&gp_enable_query_metrics,
-		true, NULL, NULL
-	},
-
-	{
-		{"gp_enable_send_queryinfo", PGC_USERSET, UNGROUPED,
-			gettext_noop("Enable query info metrics collection."),
-			NULL,
-			GUC_GPDB_ADDOPT
-		},
-		&gp_enable_send_queryinfo,
 		true, NULL, NULL
 	},
 
@@ -4280,15 +4268,6 @@ struct config_int ConfigureNamesInt_gp[] =
 		},
 		&gpperfmon_port,
 		8888, 1024, 65535, NULL, NULL
-	},
-
-	{
-		{"gp_query_metrics_port", PGC_POSTMASTER, UNGROUPED,
-			gettext_noop("Sets the port number of sending query metrics."),
-			NULL,
-		},
-		&gp_query_metrics_port,
-		9898, 1024, 65535, NULL, NULL
 	},
 
 	{

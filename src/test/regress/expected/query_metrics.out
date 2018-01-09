@@ -67,13 +67,6 @@ SELECT 1;
         1
 (1 row)
 
--- default value
-SHOW GP_QUERY_METRICS_PORT;
- gp_query_metrics_port 
------------------------
- 9898
-(1 row)
-
 SELECT 1;
  ?column? 
 ----------
