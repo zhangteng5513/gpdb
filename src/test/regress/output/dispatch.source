@@ -387,7 +387,7 @@ select cleanupAllGangs();
  t
 (1 row)
 
-select gp_inject_fault('process_startup_packet', 'suspend', 2);
+select gp_inject_fault('process_startup_packet', 'suspend', '', '', '', 1, 1, 2::smallint);
 NOTICE:  Success:
  gp_inject_fault 
 -----------------
