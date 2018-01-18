@@ -1,0 +1,26 @@
+LOAD '/home/gpadmin/workspace_wh/gpdb_metrics/src/test/regress/query_info_hook_test/query_info_hook_test.so';
+SET client_min_messages='log';
+-- Test normal case
+SELECT 1 AS a;
+LOG:  statement: SELECT 1 AS a;
+LOG:  Query submit
+LOG:  Query start
+LOG:  Plan node initializing
+LOG:  Plan node executing
+LOG:  Plan node finished
+LOG:  Query Done
+ a 
+---
+ 1
+(1 row)
+
+--Test Error case
+SELECT 1/0 AS a;
+LOG:  statement: SELECT 1/0 AS a;
+LOG:  Query submit
+LOG:  Query start
+LOG:  Plan node initializing
+LOG:  Plan node executing
+LOG:  Query Error
+LOG:  Query Error
+ERROR:  division by zero
