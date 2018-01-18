@@ -224,7 +224,7 @@ select gp_inject_fault('send_qe_details_init_backend', 'reset', 2);
 set gp_segment_connect_timeout to 1;
 select cleanupAllGangs();
 
-select gp_inject_fault('process_startup_packet', 'suspend', '', '', '', 1, 1, 2::smallint);
+select gp_inject_fault('process_startup_packet', 'suspend', 2);
 
 -- expect timeout failure
 select * from dispatch_test_t1, dispatch_test_t2, dispatch_test_t3
