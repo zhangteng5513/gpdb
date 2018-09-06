@@ -73,6 +73,9 @@ pg_regress$(X): pg_regress.o pg_regress_main.o
 pg_regress.o: pg_regress.c $(top_builddir)/src/port/pg_config_paths.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(top_builddir)/src/port $(EXTRADEFS) -c -o $@ $<
 
+regress_gp.o: override CFLAGS += -I$(top_builddir)/src/interfaces/libpq
+regress_gp.o: override LDFLAGS += -L$(top_builddir)/src/interfaces/libpq
+
 twophase_pqexecparams: twophase_pqexecparams.c
 	$(CC) $(CPPFLAGS) -I$(top_builddir)/src/interfaces/libpq -L$(GPHOME)/lib -L$(top_builddir)/src/interfaces/libpq  -o $@ $< -lpq
 
