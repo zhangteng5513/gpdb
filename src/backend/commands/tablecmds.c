@@ -56,6 +56,7 @@
 #include "commands/trigger.h"
 #include "commands/typecmds.h"
 #include "executor/executor.h"
+#include "executor/instrument.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
 #include "nodes/parsenodes.h"
@@ -87,6 +88,7 @@
 #include "utils/inval.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
+#include "utils/metrics_utils.h"
 #include "utils/relcache.h"
 #include "utils/syscache.h"
 
@@ -11296,9 +11298,9 @@ build_ctas_with_dist(Relation rel, List *dist_clause,
 	dest = CreateDestReceiver(DestIntoRel, NULL);
 
 	/* Create a QueryDesc requesting no output */
-	queryDesc = CreateQueryDesc(stmt,  pstrdup("(internal SELECT INTO query)"),
+	queryDesc = CreateQueryDesc(stmt, debug_query_string,
 								ActiveSnapshot, InvalidSnapshot,
-								dest, NULL, INSTRUMENT_NONE);
+								dest, NULL, GP_INSTRUMENT_OPTS);
 
 	return queryDesc;
 }
@@ -12032,6 +12034,10 @@ ATExecSetDistributedBy(Relation rel, Node *node, AlterTableCmd *cmd)
 
 		PG_TRY();
 		{
+			/* GPDB hook for collecting query info */
+			if (query_info_collect_hook)
+				(*query_info_collect_hook)(METRICS_QUERY_SUBMIT, queryDesc);
+
 			/* 
 			 * We need to update our snapshot here to make sure we see all
 			 * committed work. We have an exclusive lock on the table so no one
@@ -12039,7 +12045,6 @@ ATExecSetDistributedBy(Relation rel, Node *node, AlterTableCmd *cmd)
 			 */
 			saveSnapshot = ActiveSnapshot;
 			ActiveSnapshot = CopySnapshot(GetLatestSnapshot());
-
 	
 			/* Step (c) - run on all nodes */
 			ExecutorStart(queryDesc, 0);
