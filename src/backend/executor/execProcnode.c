@@ -1166,6 +1166,14 @@ MultiExecProcNode(PlanState *node)
 
 	if (node->chgParam != NULL) /* something changed */
 		ExecReScan(node, NULL); /* let ReScan handle this */
+	
+	if (!node->fHadSentNodeStart)
+	{
+		/* GPDB hook for collecting query info */
+		if (query_info_collect_hook)
+			(*query_info_collect_hook)(METRICS_PLAN_NODE_EXECUTING, node);
+		node->fHadSentNodeStart = true;
+	}
 
 	switch (nodeTag(node))
 	{
