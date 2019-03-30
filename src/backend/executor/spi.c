@@ -1717,6 +1717,18 @@ _SPI_prepare_plan(const char *src, SPIPlanPtr plan, ParamListInfo boundParams)
 				}
 			}
 			stmt_list = pg_plan_queries(stmt_list, cursor_options, NULL, false);
+			// GDB: Mark query as spi inner query for extension usage
+			{
+				ListCell *lc;
+
+				foreach (lc, stmt_list)
+				{
+					Node *pstmt = lfirst(lc);
+
+					if (IsA(pstmt, PlannedStmt))
+						((PlannedStmt*)pstmt)->metricsQueryType = SPI_INNER_QUERY;
+				}
+			}
 		}
 
 		plansource = (CachedPlanSource *) palloc0(sizeof(CachedPlanSource));

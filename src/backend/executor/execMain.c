@@ -982,6 +982,9 @@ ExecutorEnd(QueryDesc *queryDesc)
 	EState	   *estate;
 	MemoryContext oldcontext;
 
+	/* GPDB: whether this is a SPI inner query for extension usage */
+	bool 		isInnerQuery;
+
 	/* sanity checks */
 	Assert(queryDesc != NULL);
 
@@ -990,6 +993,9 @@ ExecutorEnd(QueryDesc *queryDesc)
 	Assert(estate != NULL);
 
 	Assert(NULL != queryDesc->plannedstmt && MEMORY_OWNER_TYPE_Undefined != queryDesc->memoryAccountId);
+
+	/* GPDB: Save SPI flag first in case the memory context of plannedstmt is cleaned up */
+	isInnerQuery = estate->es_plannedstmt->metricsQueryType > 0;
 
 	START_MEMORY_ACCOUNT(queryDesc->memoryAccountId);
 
@@ -1110,7 +1116,7 @@ ExecutorEnd(QueryDesc *queryDesc)
 
 	/* GPDB hook for collecting query info */
 	if (query_info_collect_hook)
-		(*query_info_collect_hook)(METRICS_QUERY_DONE, queryDesc);
+		(*query_info_collect_hook)(isInnerQuery ? METRICS_INNER_QUERY_DONE : METRICS_QUERY_DONE, queryDesc);
 
 	/* Reset queryDesc fields that no longer point to anything */
 	queryDesc->tupDesc = NULL;

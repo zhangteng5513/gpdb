@@ -131,6 +131,7 @@ _copyPlannedStmt(PlannedStmt *from)
 		newnode->intoPolicy = NULL;
 
 	COPY_SCALAR_FIELD(query_mem);
+	COPY_SCALAR_FIELD(metricsQueryType);
 
 	return newnode;
 }

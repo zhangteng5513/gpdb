@@ -206,6 +206,9 @@ init_execution_state(List *queryTree_list, SQLFunctionCache *fcache, bool readon
 			stmt = queryTree->utilityStmt;
 		else
 			stmt = (Node *) pg_plan_query(queryTree, 0, NULL);
+		
+		if (IsA(stmt, PlannedStmt))
+			((PlannedStmt*)stmt)->metricsQueryType = FUNCTION_INNER_QUERY;
 
 		/* Precheck all commands for validity in a function */
 		if (IsA(stmt, TransactionStmt))
@@ -445,8 +448,7 @@ postquel_start(execution_state *es, SQLFunctionCachePtr fcache)
 								 snapshot, InvalidSnapshot,
 								 None_Receiver,
 								 fcache->paramLI,
-								 GP_INSTRUMENT_OPTS);
-
+								 INSTRUMENT_NONE);
 		/* GPDB hook for collecting query info */
 		if (query_info_collect_hook)
 			(*query_info_collect_hook)(METRICS_QUERY_SUBMIT, es->qd);

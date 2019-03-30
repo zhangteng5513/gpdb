@@ -318,6 +318,7 @@ _outPlannedStmt(StringInfo str, PlannedStmt *node)
 	/* Don't serialize policy */
 
 	WRITE_UINT64_FIELD(query_mem);
+	WRITE_INT_FIELD(metricsQueryType);
 }
 #endif /* COMPILING_BINARY_FUNCS */
 

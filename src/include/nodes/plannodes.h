@@ -143,6 +143,9 @@ typedef struct PlannedStmt
 
 	/* What is the memory reserved for this query's execution? */
 	uint64		query_mem;
+
+	/* GPDB: whether the query is a spi/function inner/top-level query or for extension usage */
+	int8		metricsQueryType;
 } PlannedStmt;
 
 /*
